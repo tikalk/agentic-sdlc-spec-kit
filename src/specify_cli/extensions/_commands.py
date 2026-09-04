@@ -15,8 +15,11 @@ import shutil
 import stat
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from packaging.version import Version
 
 import typer
 import yaml
@@ -66,7 +69,16 @@ extension_app = make_typer(
 
 catalog_app = make_typer(
     name="catalog",
-    help="Manage extension catalogs",
+    help=(
+        "Manage extension catalogs.\n\n"
+        "Catalogs are either install sources (install_allowed) or discovery-only "
+        "search surfaces. The built-in 'community' catalog is discovery-only by "
+        "design: it is unvetted, so it is searchable but not installable. To install "
+        "something you found there, either use 'specify extension add <name> --from "
+        "<url>' after vetting it, or curate your own catalog you control. Never flip a "
+        "discovery-only catalog to install_allowed — that is the vetting boundary."
+    ),
+    add_completion=False,
 )
 extension_app.add_typer(catalog_app, name="catalog")
 
@@ -91,6 +103,85 @@ def load_init_options(*args, **kwargs):
 def _display_project_path(*args, **kwargs):
     from .. import _display_project_path as _f
     return _f(*args, **kwargs)
+
+
+def _command_safe_id(raw_id: object, placeholder: str = "<extension-id>") -> str:
+    """Return an extension ID that is safe to embed in a suggested shell command.
+
+    Catalog entries (especially from discovery-only catalogs) are untrusted:
+    their keys are not validated during catalog merge, so an ``id`` like
+    ``foo; rm -rf ~`` could otherwise be interpolated into a command we
+    explicitly encourage the user to copy and run. ``rich.markup.escape`` only
+    neutralizes Rich markup, not shell metacharacters, so it is not sufficient
+    here. Only emit the real ID when it matches the same
+    lowercase-alphanumeric-and-hyphen rule ``ExtensionManifest`` enforces
+    (``^[a-z0-9-]+$``); otherwise fall back to a literal placeholder so the
+    printed command never carries catalog-controlled shell text.
+
+    A leading hyphen is additionally rejected: an ID like ``--force`` satisfies
+    the pattern but Typer would parse it as an option rather than the positional
+    extension argument, yielding a non-copyable or option-altering command.
+    """
+    from . import VALID_EXTENSION_ARTIFACT_NAME_PATTERN
+
+    text = str(raw_id)
+    if text.startswith("-"):
+        return placeholder
+    if VALID_EXTENSION_ARTIFACT_NAME_PATTERN.match(text):
+        return text
+    return placeholder
+
+
+def _bundled_update_source(ext_id: str) -> tuple[Path, Version] | tuple[None, None]:
+    """Locate the local bundled copy of *ext_id* and its parsed version.
+
+    Bundled extensions have no download URL, so an update can only come
+    from the copy shipped with the running spec-kit release — which may
+    lag the version the catalog on main advertises. Returns
+    ``(path, Version)`` when a valid local copy exists, ``(None, None)``
+    otherwise.
+    """
+    from . import ExtensionManifest, ValidationError
+    from packaging import version as pkg_version
+
+    bundled_dir = _locate_bundled_extension(ext_id)
+    if bundled_dir is None:
+        return None, None
+    try:
+        manifest = ExtensionManifest(bundled_dir / "extension.yml")
+        return bundled_dir, pkg_version.Version(manifest.version)
+    except (ValidationError, pkg_version.InvalidVersion, OSError):
+        return None, None
+
+
+def _archive_extension_directory(source_dir: Path) -> Path:
+    """Package an extension directory as a ZIP archive for the update flow.
+
+    The update pipeline validates and installs archives (bounded
+    extraction, manifest preflight, ID/version checks, backup/rollback),
+    so a locally bundled extension is fed through that identical hardened
+    path rather than growing a second install code path. The caller
+    deletes the archive after the update, the same as a downloaded one.
+    """
+    import zipfile
+
+    fd, tmp_name = tempfile.mkstemp(prefix="speckit-bundled-update-", suffix=".zip")
+    try:
+        with os.fdopen(fd, "wb") as archive_file:
+            with zipfile.ZipFile(archive_file, "w", zipfile.ZIP_DEFLATED) as zf:
+                for path in sorted(source_dir.rglob("*")):
+                    # Never follow symlinks: is_file() follows the target
+                    # and ZipFile.write() reads its bytes, which would turn
+                    # an out-of-tree target into a regular archive member
+                    # before the hardened extractor ever sees it.
+                    if path.is_symlink():
+                        continue
+                    if path.is_file():
+                        zf.write(path, path.relative_to(source_dir).as_posix())
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
+    return Path(tmp_name)
 
 
 def _refresh_events_and_warn(project_root: Path) -> None:
@@ -466,6 +557,14 @@ def catalog_list():
         console.print(f"     Install: {install_str}")
         console.print()
 
+    if any(not entry.install_allowed for entry in active_catalogs):
+        console.print(
+            "[dim]Discovery-only catalogs are searchable but not installable by design "
+            "(unvetted sources). To install something you found in one, vet it and run "
+            "'specify extension add <name> --from <url>', or add it to a catalog you "
+            "control. Don't flip a discovery-only catalog to install_allowed.[/dim]\n"
+        )
+
     config_path = project_root / ".specify" / "extension-catalogs.yml"
     user_config_path = Path.home() / ".specify" / "extension-catalogs.yml"
     if os.environ.get("SPECKIT_CATALOG_URL"):
@@ -499,7 +598,11 @@ def catalog_add(
     priority: int = typer.Option(10, "--priority", help="Priority (lower = higher priority)"),
     install_allowed: bool = typer.Option(
         False, "--install-allowed/--no-install-allowed",
-        help="Allow extensions from this catalog to be installed",
+        help=(
+            "Mark this catalog as a trusted install source. Only enable this for a "
+            "catalog you own and vet; leave it off (the default) for discovery-only "
+            "search surfaces. Never enable it for an unvetted public catalog."
+        ),
     ),
     description: str = typer.Option("", "--description", help="Description of the catalog"),
 ):
@@ -925,8 +1028,8 @@ def extension_add(
         # Warn about untrusted sources — default-deny confirmation
         console.print()
         console.print(Panel(
-            f"[bold]You are installing an extension from an external URL that is not\n"
-            f"listed in any of your configured extension catalogs.[/bold]\n\n"
+            f"[bold]You are installing an extension directly from an external URL,\n"
+            f"bypassing your trusted (install-allowed) extension catalogs.[/bold]\n\n"
             f"URL: {safe_url}\n\n"
             f"Only install extensions from sources you trust.",
             title="[bold yellow]⚠ Untrusted Source[/bold yellow]",
@@ -1029,13 +1132,25 @@ def extension_add(
                         # Enforce install_allowed policy
                         if not ext_info.get("_install_allowed", True):
                             catalog_name = _escape_markup(str(ext_info.get("_catalog_name", "community")))
+                            resolved_id = _command_safe_id(ext_info["id"])
                             console.print(
-                                f"[red]Error:[/red] '{safe_extension}' is available in the "
-                                f"'{catalog_name}' catalog but installation is not allowed from that catalog."
+                                f"[red]Error:[/red] '{safe_extension}' was found in the "
+                                f"'{catalog_name}' catalog, which is discovery-only — a search "
+                                f"surface, not an install source."
                             )
                             console.print(
-                                f"\nTo enable installation, add '{safe_extension}' to an approved catalog "
-                                f"(install_allowed: true) in .specify/extension-catalogs.yml."
+                                "\nDiscovery-only catalogs are intentionally not installable so "
+                                "unvetted extensions can't be pulled in without review. Don't flip "
+                                "such a catalog to install_allowed. Instead, once you've vetted this "
+                                "extension:"
+                            )
+                            console.print(
+                                f"  • install it directly from its archive URL:\n"
+                                f"      specify extension add {resolved_id} --from <archive-url>"
+                            )
+                            console.print(
+                                "  • or add it to a catalog you curate and control "
+                                "(install_allowed: true)."
                             )
                             raise typer.Exit(1)
 
@@ -1052,8 +1167,7 @@ def extension_add(
                                 force=force,
                             )
                         finally:
-                            if archive_path.exists():
-                                archive_path.unlink()
+                            archive_path.unlink(missing_ok=True)
 
         console.print(f"\n{accent('✓')} Extension installed successfully!")
         console.print(f"\n[bold]{_escape_markup(str(manifest.name))}[/bold] (v{_escape_markup(str(manifest.version))})")
@@ -1278,14 +1392,16 @@ def extension_search(
                 console.print(f"  [dim]Repository:[/dim] {_escape_markup(str(ext['repository']))}")
 
             # Install command (show warning if not installable)
-            safe_id = _escape_markup(str(ext['id']))
+            cmd_id = _command_safe_id(ext['id'])
             if install_allowed:
-                console.print(f"\n  {accent('Install:')} specify extension add {safe_id}")
+                console.print(f"\n  {accent('Install:')} specify extension add {cmd_id}")
             else:
-                console.print(f"\n  [yellow]⚠[/yellow]  Not directly installable from '{catalog_name}'.")
+                console.print(f"\n  [yellow]⚠[/yellow]  Not directly installable from '{catalog_name}' (discovery-only).")
                 console.print(
-                    f"  Add to an approved catalog with install_allowed: true, "
-                    f"or install from an archive URL: specify extension add {safe_id} --from <archive-url>"
+                    f"  Once vetted, install it directly: specify extension add {cmd_id} --from <archive-url>"
+                )
+                console.print(
+                    "  Don't flip a discovery-only catalog to install_allowed — that's the vetting boundary."
                 )
             console.print()
 
@@ -1507,12 +1623,13 @@ def _print_extension_info(ext_info: dict, manager):
     is_installed = manager.registry.is_installed(ext_info['id'])
     install_allowed = ext_info.get("_install_allowed", True)
     safe_id = _escape_markup(str(ext_info['id']))
+    cmd_id = _command_safe_id(ext_info['id'])
     if is_installed:
         console.print(accent("✓ Installed"))
         metadata = manager.registry.get(ext_info['id'])
         priority = normalize_priority(metadata.get("priority") if isinstance(metadata, dict) else None)
         console.print(f"[dim]Priority:[/dim] {priority}")
-        console.print(f"\nTo remove: specify extension remove {safe_id}")
+        console.print(f"\nTo remove: specify extension remove {cmd_id}")
     elif install_allowed:
         console.print("[yellow]Not installed[/yellow]")
         console.print(f"\n{accent('Install:')} specify extension add {safe_id}")
@@ -1520,9 +1637,25 @@ def _print_extension_info(ext_info: dict, manager):
         catalog_name = _escape_markup(str(ext_info.get("_catalog_name", "community")))
         console.print("[yellow]Not installed[/yellow]")
         console.print(
-            f"\n[yellow]⚠[/yellow]  '{safe_id}' is available in the '{catalog_name}' catalog "
-            f"but not in your approved catalog. Add it to .specify/extension-catalogs.yml "
-            f"with install_allowed: true to enable installation."
+            f"\n[yellow]⚠[/yellow]  '{safe_id}' is in the '{catalog_name}' catalog, which is "
+            f"discovery-only (a search surface, not an install source)."
+        )
+        download_url = ext_info.get("download_url")
+        if download_url:
+            console.print(
+                f"Candidate archive (vet before installing): {_escape_markup(str(download_url))}"
+            )
+            console.print(
+                f"Once vetted, install directly: specify extension add {cmd_id} --from <archive-url>"
+            )
+        else:
+            console.print(
+                f"Once you've vetted its release archive, install directly: "
+                f"specify extension add {cmd_id} --from <archive-url>"
+            )
+        console.print(
+            "Discovery-only catalogs are intentionally not install sources — don't set "
+            "install_allowed on them."
         )
 
 
@@ -1566,6 +1699,7 @@ def extension_update(
         console.print("🔄 Checking for updates...\n")
 
         updates_available = []
+        blocked_updates = []
 
         for ext_id in extensions_to_update:
             safe_ext_id = _escape_markup(str(ext_id))
@@ -1602,20 +1736,55 @@ def extension_update(
                 continue
 
             if catalog_version > installed_version:
+                download_url = ext_info.get("download_url")
+                bundled_dir = None
+                available_version = catalog_version
+                if ext_info.get("bundled") and not download_url:
+                    # Bundled extensions cannot be downloaded; the update has
+                    # to come from the copy shipped with the running spec-kit
+                    # release, which may lag the catalog on main (#4345).
+                    bundled_dir, bundled_version = _bundled_update_source(ext_id)
+                    # Block whenever the local copy lags the catalog, not
+                    # just when it lags the installation: installing an
+                    # intermediate version would leave the project behind
+                    # the catalog while reporting success, contrary to the
+                    # documented "upgrade spec-kit first" behavior.
+                    if bundled_dir is None or bundled_version < catalog_version:
+                        local_desc = (
+                            f"only ships v{bundled_version}"
+                            if bundled_dir is not None
+                            else "does not ship a local copy"
+                        )
+                        console.print(
+                            f"⚠  {safe_ext_id}: v{catalog_version} is available, but this "
+                            f"spec-kit release {local_desc} — upgrade spec-kit, then rerun "
+                            f"'specify extension update'"
+                        )
+                        blocked_updates.append(ext_id)
+                        continue
+                    available_version = bundled_version
                 updates_available.append(
                     {
                         "id": ext_id,
                         "name": ext_info.get("name", ext_id),  # Display name for status messages
                         "installed": str(installed_version),
-                        "available": str(catalog_version),
-                        "download_url": ext_info.get("download_url"),
+                        "available": str(available_version),
+                        "download_url": download_url,
+                        "bundled_dir": bundled_dir,
                     }
                 )
             else:
                 console.print(f"✓ {safe_ext_id}: Up to date (v{installed_version})")
 
         if not updates_available:
-            console.print("\n[green]All extensions are up to date![/green]")
+            if blocked_updates:
+                console.print(
+                    "\n[yellow]Update(s) exist but require a newer spec-kit "
+                    "release — upgrade spec-kit, then rerun "
+                    "'specify extension update'.[/yellow]"
+                )
+            else:
+                console.print("\n[green]All extensions are up to date![/green]")
             raise typer.Exit(0)
 
         # Show available updates
@@ -1912,363 +2081,361 @@ def extension_update(
                         if ext_hooks:
                             backup_hooks[hook_name] = ext_hooks
 
-                # 5. Install new version (bundled or remote)
-                if update.get("source") == "bundled":
-                    bundled_path = update.get("bundled_path")
-                    if not bundled_path or not Path(bundled_path).exists():
-                        raise ExtensionError(f"Bundled extension path not found for '{extension_id}'")
-                    installation_modified = True
-                    manager.remove(extension_id, keep_config=True)
-                    _ = manager.install_from_directory(Path(bundled_path), speckit_version)
+                # 5. Acquire the new version. Bundled extensions install from
+                # the copy shipped with the running spec-kit release (they
+                # have no download URL); everything else downloads. Both are
+                # packaged as archives so the identical validation,
+                # backup/rollback, and install pipeline below applies.
+                if update.get("bundled_dir") is not None:
+                    archive_path = _archive_extension_directory(update["bundled_dir"])
                 else:
                     archive_path = catalog.download_extension(extension_id)
-                    try:
-                        # 6. Validate the archive and extension ID before modifying
-                        # the existing installation. The shared extractor applies
-                        # the same bounded security checks to ZIP and tar archives.
-                        with tempfile.TemporaryDirectory(
-                            prefix="speckit-update-archive-"
-                        ) as archive_tmpdir:
-                            extracted_root = Path(archive_tmpdir)
-                            try:
-                                safe_extract_archive(archive_path, extracted_root)
-                            except ValueError as exc:
-                                if (
-                                    "Conflicting path" in str(exc)
-                                    and "extension.yml" in str(exc).casefold()
-                                ):
-                                    raise ValueError(
-                                        "Downloaded extension archive contains multiple "
-                                        "extension.yml manifests"
-                                    ) from exc
-                                raise
-                            manifest_root = extracted_root
-                            top_level = list(extracted_root.iterdir())
-                            root_manifest_entries = [
+                try:
+                    # 6. Validate the archive and extension ID before modifying
+                    # the existing installation. The shared extractor applies
+                    # the same bounded security checks to ZIP and tar archives.
+                    with tempfile.TemporaryDirectory(
+                        prefix="speckit-update-archive-"
+                    ) as archive_tmpdir:
+                        extracted_root = Path(archive_tmpdir)
+                        try:
+                            safe_extract_archive(archive_path, extracted_root)
+                        except ValueError as exc:
+                            if (
+                                "Conflicting path" in str(exc)
+                                and "extension.yml" in str(exc).casefold()
+                            ):
+                                raise ValueError(
+                                    "Downloaded extension archive contains multiple "
+                                    "extension.yml manifests"
+                                ) from exc
+                            raise
+                        manifest_root = extracted_root
+                        top_level = list(extracted_root.iterdir())
+                        root_manifest_entries = [
+                            entry
+                            for entry in top_level
+                            if entry.name.casefold() == "extension.yml"
+                        ]
+                        if any(
+                            entry.name != "extension.yml"
+                            for entry in root_manifest_entries
+                        ):
+                            raise ValueError(
+                                "Archive must use canonical 'extension.yml' casing"
+                            )
+                        canonical_root_manifest = next(
+                            (
                                 entry
-                                for entry in top_level
+                                for entry in root_manifest_entries
+                                if entry.name == "extension.yml"
+                            ),
+                            None,
+                        )
+                        if canonical_root_manifest is not None:
+                            manifest_path = canonical_root_manifest
+                        else:
+                            top_level_dirs = [
+                                entry for entry in top_level if entry.is_dir()
+                            ]
+                            if len(top_level_dirs) != 1:
+                                raise ValueError(
+                                    "Downloaded extension archive must contain exactly "
+                                    "one top-level directory"
+                                )
+                            manifest_root = top_level_dirs[0]
+                            nested_manifest_entries = [
+                                entry
+                                for entry in manifest_root.iterdir()
                                 if entry.name.casefold() == "extension.yml"
                             ]
                             if any(
                                 entry.name != "extension.yml"
-                                for entry in root_manifest_entries
+                                for entry in nested_manifest_entries
                             ):
                                 raise ValueError(
                                     "Archive must use canonical 'extension.yml' casing"
                                 )
-                            canonical_root_manifest = next(
+                            manifest_path = next(
                                 (
                                     entry
-                                    for entry in root_manifest_entries
+                                    for entry in nested_manifest_entries
                                     if entry.name == "extension.yml"
                                 ),
-                                None,
+                                manifest_root / "extension.yml",
                             )
-                            if canonical_root_manifest is not None:
-                                manifest_path = canonical_root_manifest
+                        if not manifest_path.is_file():
+                            raise ValueError(
+                                "Downloaded extension archive is missing 'extension.yml'"
+                            )
+                        manifest_bytes = manifest_path.read_bytes()
+                        parsed_manifest = yaml.safe_load(manifest_bytes)
+                        manifest_data = (
+                            parsed_manifest if parsed_manifest is not None else {}
+                        )
+                        if not isinstance(manifest_data, dict):
+                            raise ValueError(
+                                "Invalid extension manifest in downloaded archive: "
+                                "expected YAML mapping"
+                            )
+                        extension_data = manifest_data.get("extension", {})
+                        if not isinstance(extension_data, dict):
+                            raise ValueError(
+                                "Invalid extension manifest in downloaded archive: "
+                                "expected 'extension' mapping"
+                            )
+
+                    # Run the same manifest and compatibility validation as a
+                    # normal install while the existing extension is still
+                    # untouched. Reuse the exact bounded bytes selected above.
+                    with tempfile.TemporaryDirectory(
+                        prefix="speckit-update-manifest-"
+                    ) as manifest_tmpdir:
+                        manifest_file = Path(manifest_tmpdir) / "extension.yml"
+                        manifest_file.write_bytes(manifest_bytes)
+                        preflight_manifest = ExtensionManifest(manifest_file)
+                        manager.check_compatibility(
+                            preflight_manifest, speckit_version
+                        )
+
+                    zip_extension_id = preflight_manifest.id
+                    if zip_extension_id != extension_id:
+                        raise ValueError(
+                            f"Extension ID mismatch: expected '{extension_id}', got '{zip_extension_id}'"
+                        )
+
+                    expected_version = pkg_version.Version(update["available"])
+                    archive_version = pkg_version.Version(
+                        preflight_manifest.version
+                    )
+                    if archive_version != expected_version:
+                        raise ValueError(
+                            "Extension version mismatch: "
+                            f"expected '{update['available']}', "
+                            f"got '{preflight_manifest.version}'"
+                        )
+
+                    # Match the remaining deterministic install validation
+                    # before crossing the destructive boundary. The helper
+                    # excludes this extension's current registry entry while
+                    # still detecting namespace, core, duplicate, and
+                    # cross-extension command conflicts.
+                    manager._validate_install_conflicts(preflight_manifest)
+
+                    new_command_names = list(
+                        manager._collect_manifest_command_names(
+                            preflight_manifest
+                        )
+                    )
+                    new_skill_names = list(
+                        dict.fromkeys(
+                            manager._skill_name_for_command(command_name)
+                            for command_name in new_command_names
+                        )
+                    )
+
+                    # Command rendering happens before hook registration and
+                    # registry.add(). Preserve every candidate output that
+                    # already exists, and remember paths that are absent now so
+                    # rollback can remove files created before registry state is
+                    # available. Include aliases and Copilot companion prompts.
+                    for (
+                        agent_name,
+                        commands_dir,
+                    ) in manager._command_registration_targets().items():
+                        agent_config = registrar.AGENT_CONFIGS[agent_name]
+                        for command_name in new_command_names:
+                            output_name = _AgentReg._compute_output_name(
+                                agent_name, command_name, agent_config
+                            )
+                            command_file = (
+                                commands_dir
+                                / f"{output_name}{agent_config['extension']}"
+                            )
+                            _AgentReg._ensure_inside(command_file, commands_dir)
+                            backup_command_path = (
+                                backup_commands_dir
+                                / agent_name
+                                / command_file.relative_to(commands_dir)
+                            )
+                            if command_file.exists() or command_file.is_symlink():
+                                backup_command_artifact(
+                                    command_file, backup_command_path
+                                )
                             else:
-                                top_level_dirs = [
-                                    entry for entry in top_level if entry.is_dir()
-                                ]
-                                if len(top_level_dirs) != 1:
-                                    raise ValueError(
-                                        "Downloaded extension archive must contain exactly "
-                                        "one top-level directory"
+                                new_command_paths_absent_before_update.append(
+                                    command_file
+                                )
+                                remember_absent_parent_dirs(
+                                    command_file, commands_dir
+                                )
+
+                            if agent_name == "copilot":
+                                prompts_dir = (
+                                    project_root / ".github" / "prompts"
+                                )
+                                prompt_file = (
+                                    prompts_dir / f"{command_name}.prompt.md"
+                                )
+                                _AgentReg._ensure_inside(
+                                    prompt_file, prompts_dir
+                                )
+                                if prompt_file.is_symlink():
+                                    raise RuntimeError(
+                                        "Cannot safely update symlinked Copilot "
+                                        f"prompt artifact '{prompt_file}'"
                                     )
-                                manifest_root = top_level_dirs[0]
-                                nested_manifest_entries = [
-                                    entry
-                                    for entry in manifest_root.iterdir()
-                                    if entry.name.casefold() == "extension.yml"
-                                ]
-                                if any(
-                                    entry.name != "extension.yml"
-                                    for entry in nested_manifest_entries
-                                ):
-                                    raise ValueError(
-                                        "Archive must use canonical 'extension.yml' casing"
-                                    )
-                                manifest_path = next(
-                                    (
-                                        entry
-                                        for entry in nested_manifest_entries
-                                        if entry.name == "extension.yml"
-                                    ),
-                                    manifest_root / "extension.yml",
-                                )
-                            if not manifest_path.is_file():
-                                raise ValueError(
-                                    "Downloaded extension archive is missing 'extension.yml'"
-                                )
-                            manifest_bytes = manifest_path.read_bytes()
-                            parsed_manifest = yaml.safe_load(manifest_bytes)
-                            manifest_data = (
-                                parsed_manifest if parsed_manifest is not None else {}
-                            )
-                            if not isinstance(manifest_data, dict):
-                                raise ValueError(
-                                    "Invalid extension manifest in downloaded archive: "
-                                    "expected YAML mapping"
-                                )
-                            extension_data = manifest_data.get("extension", {})
-                            if not isinstance(extension_data, dict):
-                                raise ValueError(
-                                    "Invalid extension manifest in downloaded archive: "
-                                    "expected 'extension' mapping"
-                                )
-
-                        # Run the same manifest and compatibility validation as a
-                        # normal install while the existing extension is still
-                        # untouched. Reuse the exact bounded bytes selected above.
-                        with tempfile.TemporaryDirectory(
-                            prefix="speckit-update-manifest-"
-                        ) as manifest_tmpdir:
-                            manifest_file = Path(manifest_tmpdir) / "extension.yml"
-                            manifest_file.write_bytes(manifest_bytes)
-                            preflight_manifest = ExtensionManifest(manifest_file)
-                            manager.check_compatibility(
-                                preflight_manifest, speckit_version
-                            )
-
-                        zip_extension_id = preflight_manifest.id
-                        if zip_extension_id != extension_id:
-                            raise ValueError(
-                                f"Extension ID mismatch: expected '{extension_id}', got '{zip_extension_id}'"
-                            )
-
-                        expected_version = pkg_version.Version(update["available"])
-                        archive_version = pkg_version.Version(
-                            preflight_manifest.version
-                        )
-                        if archive_version != expected_version:
-                            raise ValueError(
-                                "Extension version mismatch: "
-                                f"expected '{update['available']}', "
-                                f"got '{preflight_manifest.version}'"
-                            )
-
-                        # Match the remaining deterministic install validation
-                        # before crossing the destructive boundary. The helper
-                        # excludes this extension's current registry entry while
-                        # still detecting namespace, core, duplicate, and
-                        # cross-extension command conflicts.
-                        manager._validate_install_conflicts(preflight_manifest)
-
-                        new_command_names = list(
-                            manager._collect_manifest_command_names(
-                                preflight_manifest
-                            )
-                        )
-                        new_skill_names = list(
-                            dict.fromkeys(
-                                manager._skill_name_for_command(command_name)
-                                for command_name in new_command_names
-                            )
-                        )
-
-                        # Command rendering happens before hook registration and
-                        # registry.add(). Preserve every candidate output that
-                        # already exists, and remember paths that are absent now so
-                        # rollback can remove files created before registry state is
-                        # available. Include aliases and Copilot companion prompts.
-                        for (
-                            agent_name,
-                            commands_dir,
-                        ) in manager._command_registration_targets().items():
-                            agent_config = registrar.AGENT_CONFIGS[agent_name]
-                            for command_name in new_command_names:
-                                output_name = _AgentReg._compute_output_name(
-                                    agent_name, command_name, agent_config
-                                )
-                                command_file = (
-                                    commands_dir
-                                    / f"{output_name}{agent_config['extension']}"
-                                )
-                                _AgentReg._ensure_inside(command_file, commands_dir)
-                                backup_command_path = (
+                                backup_prompt_path = (
                                     backup_commands_dir
-                                    / agent_name
-                                    / command_file.relative_to(commands_dir)
+                                    / "copilot-prompts"
+                                    / prompt_file.relative_to(prompts_dir)
                                 )
-                                if command_file.exists() or command_file.is_symlink():
+                                if (
+                                    prompt_file.exists()
+                                    or prompt_file.is_symlink()
+                                ):
                                     backup_command_artifact(
-                                        command_file, backup_command_path
+                                        prompt_file, backup_prompt_path
                                     )
                                 else:
                                     new_command_paths_absent_before_update.append(
-                                        command_file
+                                        prompt_file
                                     )
                                     remember_absent_parent_dirs(
-                                        command_file, commands_dir
-                                    )
-
-                                if agent_name == "copilot":
-                                    prompts_dir = (
-                                        project_root / ".github" / "prompts"
-                                    )
-                                    prompt_file = (
-                                        prompts_dir / f"{command_name}.prompt.md"
-                                    )
-                                    _AgentReg._ensure_inside(
                                         prompt_file, prompts_dir
                                     )
-                                    if prompt_file.is_symlink():
-                                        raise RuntimeError(
-                                            "Cannot safely update symlinked Copilot "
-                                            f"prompt artifact '{prompt_file}'"
-                                        )
-                                    backup_prompt_path = (
-                                        backup_commands_dir
-                                        / "copilot-prompts"
-                                        / prompt_file.relative_to(prompts_dir)
-                                    )
-                                    if (
-                                        prompt_file.exists()
-                                        or prompt_file.is_symlink()
-                                    ):
-                                        backup_command_artifact(
-                                            prompt_file, backup_prompt_path
-                                        )
-                                    else:
-                                        new_command_paths_absent_before_update.append(
-                                            prompt_file
-                                        )
-                                        remember_absent_parent_dirs(
-                                            prompt_file, prompts_dir
-                                        )
 
-                        new_command_paths_absent_before_update = list(
-                            dict.fromkeys(
-                                new_command_paths_absent_before_update
-                            )
+                    new_command_paths_absent_before_update = list(
+                        dict.fromkeys(
+                            new_command_paths_absent_before_update
                         )
-                        new_command_dirs_absent_before_update = list(
-                            dict.fromkeys(
-                                new_command_dirs_absent_before_update
-                            )
+                    )
+                    new_command_dirs_absent_before_update = list(
+                        dict.fromkeys(
+                            new_command_dirs_absent_before_update
                         )
+                    )
 
-                        # A newly introduced command may reuse an existing
-                        # extension-owned skill directory that was not present in
-                        # the old registry. Back it up before cleanup can touch it.
-                        backup_extension_skills(new_skill_names)
-                        new_skills_dir = manager._get_skills_dir(create=False)
-                        if new_skills_dir is not None:
-                            # Unscoped removal deliberately ignores home-scoped
-                            # outputs because the flat registry cannot establish
-                            # project ownership. The active install can still
-                            # replace a marker-owned skill in its explicit root,
-                            # so back up that exact project/home target separately.
-                            backup_extension_skills(
-                                list(
-                                    dict.fromkeys(
-                                        registered_skills + new_skill_names
-                                    )
-                                ),
-                                skills_dir=new_skills_dir,
+                    # A newly introduced command may reuse an existing
+                    # extension-owned skill directory that was not present in
+                    # the old registry. Back it up before cleanup can touch it.
+                    backup_extension_skills(new_skill_names)
+                    new_skills_dir = manager._get_skills_dir(create=False)
+                    if new_skills_dir is not None:
+                        # Unscoped removal deliberately ignores home-scoped
+                        # outputs because the flat registry cannot establish
+                        # project ownership. The active install can still
+                        # replace a marker-owned skill in its explicit root,
+                        # so back up that exact project/home target separately.
+                        backup_extension_skills(
+                            list(
+                                dict.fromkeys(
+                                    registered_skills + new_skill_names
+                                )
+                            ),
+                            skills_dir=new_skills_dir,
+                        )
+                        init_options = load_init_options(project_root)
+                        if (
+                            isinstance(init_options, dict)
+                            and is_ai_skills_enabled(init_options)
+                            and isinstance(init_options.get("ai"), str)
+                            and init_options["ai"]
+                        ):
+                            # resolve_active_skills_dir() first creates the
+                            # configured project-local skills marker. Some
+                            # agents (notably Hermes) then redirect rendered
+                            # skills to a different global root, so snapshot
+                            # both locations for exact rollback.
+                            from .. import _get_skills_dir
+
+                            configured_skills_dir = _get_skills_dir(
+                                project_root, init_options["ai"]
                             )
-                            init_options = load_init_options(project_root)
-                            if (
-                                isinstance(init_options, dict)
-                                and is_ai_skills_enabled(init_options)
-                                and isinstance(init_options.get("ai"), str)
-                                and init_options["ai"]
+                            remember_absent_parent_dirs(
+                                configured_skills_dir / ".update-marker",
+                                configured_skills_dir,
+                            )
+                        new_skills_root = new_skills_dir.resolve()
+                        for skill_name in new_skill_names:
+                            skill_path = new_skills_dir / skill_name
+                            resolved_skill_path = skill_path.resolve(strict=False)
+                            resolved_skill_path.relative_to(new_skills_root)
+                            if not (
+                                skill_path.exists() or skill_path.is_symlink()
                             ):
-                                # resolve_active_skills_dir() first creates the
-                                # configured project-local skills marker. Some
-                                # agents (notably Hermes) then redirect rendered
-                                # skills to a different global root, so snapshot
-                                # both locations for exact rollback.
-                                from .. import _get_skills_dir
-
-                                configured_skills_dir = _get_skills_dir(
-                                    project_root, init_options["ai"]
+                                new_skill_paths_absent_before_update.append(
+                                    skill_path
                                 )
                                 remember_absent_parent_dirs(
-                                    configured_skills_dir / ".update-marker",
-                                    configured_skills_dir,
+                                    skill_path / "SKILL.md",
+                                    new_skills_dir,
                                 )
-                            new_skills_root = new_skills_dir.resolve()
-                            for skill_name in new_skill_names:
-                                skill_path = new_skills_dir / skill_name
-                                resolved_skill_path = skill_path.resolve(strict=False)
-                                resolved_skill_path.relative_to(new_skills_root)
-                                if not (
-                                    skill_path.exists() or skill_path.is_symlink()
-                                ):
-                                    new_skill_paths_absent_before_update.append(
-                                        skill_path
-                                    )
-                                    remember_absent_parent_dirs(
-                                        skill_path / "SKILL.md",
-                                        new_skills_dir,
-                                    )
 
-                        new_command_dirs_absent_before_update = list(
-                            dict.fromkeys(
-                                new_command_dirs_absent_before_update
-                            )
+                    new_command_dirs_absent_before_update = list(
+                        dict.fromkeys(
+                            new_command_dirs_absent_before_update
                         )
+                    )
 
-                        # 7. Remove old extension (handles command file cleanup and registry removal)
-                        installation_modified = True
-                        manager.remove(extension_id, keep_config=True)
+                    # 7. Remove old extension (handles command file cleanup and registry removal)
+                    installation_modified = True
+                    manager.remove(extension_id, keep_config=True)
 
-                        # 8. Install new version
-                        _ = manager.install_from_zip(archive_path, speckit_version)
+                    # 8. Install new version
+                    _ = manager.install_from_zip(archive_path, speckit_version)
 
-                        # Restore user config files from backup after successful install.
-                        new_extension_dir = manager.extensions_dir / extension_id
-                        if backup_config_dir.exists() and new_extension_dir.exists():
-                            for cfg_file in backup_config_dir.iterdir():
-                                if cfg_file.is_file():
-                                    shutil.copy2(cfg_file, new_extension_dir / cfg_file.name)
+                    # Restore user config files from backup after successful install.
+                    new_extension_dir = manager.extensions_dir / extension_id
+                    if backup_config_dir.exists() and new_extension_dir.exists():
+                        for cfg_file in backup_config_dir.iterdir():
+                            if cfg_file.is_file():
+                                shutil.copy2(cfg_file, new_extension_dir / cfg_file.name)
 
-                        # 9. Restore metadata from backup (installed_at, enabled state)
-                        if backup_registry_entry and isinstance(backup_registry_entry, dict):
-                            # Copy current registry entry to avoid mutating internal
-                            # registry state before explicit restore().
-                            current_metadata = manager.registry.get(extension_id)
-                            if current_metadata is None or not isinstance(current_metadata, dict):
-                                raise RuntimeError(
-                                    f"Registry entry for '{extension_id}' missing or corrupted after install — update incomplete"
-                                )
-                            new_metadata = dict(current_metadata)
+                    # 9. Restore metadata from backup (installed_at, enabled state)
+                    if backup_registry_entry and isinstance(backup_registry_entry, dict):
+                        # Copy current registry entry to avoid mutating internal
+                        # registry state before explicit restore().
+                        current_metadata = manager.registry.get(extension_id)
+                        if current_metadata is None or not isinstance(current_metadata, dict):
+                            raise RuntimeError(
+                                f"Registry entry for '{extension_id}' missing or corrupted after install — update incomplete"
+                            )
+                        new_metadata = dict(current_metadata)
 
-                            # Preserve the original installation timestamp
-                            if "installed_at" in backup_registry_entry:
-                                new_metadata["installed_at"] = backup_registry_entry["installed_at"]
+                        # Preserve the original installation timestamp
+                        if "installed_at" in backup_registry_entry:
+                            new_metadata["installed_at"] = backup_registry_entry["installed_at"]
 
-                            # Preserve the original priority (normalized to handle corruption)
-                            if "priority" in backup_registry_entry:
-                                new_metadata["priority"] = normalize_priority(backup_registry_entry["priority"])
+                        # Preserve the original priority (normalized to handle corruption)
+                        if "priority" in backup_registry_entry:
+                            new_metadata["priority"] = normalize_priority(backup_registry_entry["priority"])
 
-                            # If extension was disabled before update, disable it again
-                            if not backup_registry_entry.get("enabled", True):
-                                new_metadata["enabled"] = False
+                        # If extension was disabled before update, disable it again
+                        if not backup_registry_entry.get("enabled", True):
+                            new_metadata["enabled"] = False
 
-                            # Use restore() instead of update() because update() always
-                            # preserves the existing installed_at, ignoring our override
-                            manager.registry.restore(extension_id, new_metadata)
+                        # Use restore() instead of update() because update() always
+                        # preserves the existing installed_at, ignoring our override
+                        manager.registry.restore(extension_id, new_metadata)
 
-                            # Also disable hooks in extensions.yml if extension was disabled
-                            if not backup_registry_entry.get("enabled", True):
-                                config = hook_executor.get_project_config()
-                                if "hooks" in config:
-                                    for hook_name in config["hooks"]:
-                                        for hook in config["hooks"][hook_name]:
-                                            if hook.get("extension") == extension_id:
-                                                hook["enabled"] = False
-                                    hook_executor.save_project_config(config)
-                    finally:
-                        # Archive cleanup is housekeeping: never replace an install
-                        # error or roll back an already committed update because a
-                        # scanner temporarily locks the download on Windows.
-                        if archive_path.exists():
-                            try:
-                                archive_path.unlink()
-                            except OSError as error:
-                                zip_cleanup_error = error
+                        # Also disable hooks in extensions.yml if extension was disabled
+                        if not backup_registry_entry.get("enabled", True):
+                            config = hook_executor.get_project_config()
+                            if "hooks" in config:
+                                for hook_name in config["hooks"]:
+                                    for hook in config["hooks"][hook_name]:
+                                        if hook.get("extension") == extension_id:
+                                            hook["enabled"] = False
+                                hook_executor.save_project_config(config)
+                finally:
+                    # Archive cleanup is housekeeping: never replace an install
+                    # error or roll back an already committed update because a
+                    # scanner temporarily locks the download on Windows.
+                    try:
+                        archive_path.unlink(missing_ok=True)
+                    except OSError as error:
+                        zip_cleanup_error = error
 
                 # 10. Clean up backup on success. The update has committed at
                 # this point, so a locked backup file must not trigger rollback

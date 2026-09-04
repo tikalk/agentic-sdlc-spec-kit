@@ -7514,6 +7514,88 @@ class TestExtensionAddCLI:
         assert result.exit_code == 0, result.output
         assert f"Config: {display_path}" in result.output
 
+    def test_catalog_list_shows_discovery_only_guidance(self, tmp_path):
+        """A discovery-only catalog should trigger the trust-model guidance,
+        steering users to --from / their own catalog and away from flipping
+        install_allowed."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+        import yaml
+
+        project_dir = tmp_path / "test-project"
+        project_dir.mkdir()
+        specify_dir = project_dir / ".specify"
+        specify_dir.mkdir()
+        (specify_dir / "extension-catalogs.yml").write_text(
+            yaml.safe_dump(
+                {
+                    "catalogs": [
+                        {
+                            "name": "community",
+                            "url": "https://example.com/catalog.json",
+                            "priority": 10,
+                            "install_allowed": False,
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir):
+            result = runner.invoke(
+                app,
+                ["extension", "catalog", "list"],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 0, result.output
+        output = " ".join(result.output.split())
+        assert "not installable by design" in output
+        assert "--from <url>" in output
+        assert "Don't flip a discovery-only catalog to install_allowed" in output
+
+    def test_catalog_list_omits_guidance_when_all_installable(self, tmp_path):
+        """When every catalog is an install source, the discovery-only guidance
+        should not appear."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+        import yaml
+
+        project_dir = tmp_path / "test-project"
+        project_dir.mkdir()
+        specify_dir = project_dir / ".specify"
+        specify_dir.mkdir()
+        (specify_dir / "extension-catalogs.yml").write_text(
+            yaml.safe_dump(
+                {
+                    "catalogs": [
+                        {
+                            "name": "my-org",
+                            "url": "https://example.com/catalog.json",
+                            "priority": 10,
+                            "install_allowed": True,
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir):
+            result = runner.invoke(
+                app,
+                ["extension", "catalog", "list"],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "not installable by design" not in result.output
+
     def test_catalog_add_escapes_config_read_exception_markup(self, tmp_path):
         """Catalog config parse errors can include user-controlled file content."""
         import yaml
@@ -7848,6 +7930,186 @@ class TestExtensionAddCLI:
             f"Expected download_extension to be called with resolved ID 'acme-jira-integration', "
             f"but was called with '{download_called_with[0]}'"
         )
+
+    def test_add_discovery_only_error_suggests_resolved_id(self, tmp_path):
+        """The not-installable error must suggest a copy-pasteable command using
+        the resolved catalog ID, not a display name that may contain spaces."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch, MagicMock
+        from specify_cli import app
+
+        runner = CliRunner()
+
+        project_dir = tmp_path / "test-project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".specify" / "extensions").mkdir(parents=True)
+
+        mock_catalog = MagicMock()
+        mock_catalog.get_extension_info.return_value = None  # ID lookup fails
+        mock_catalog.search.return_value = [
+            {
+                "id": "acme-jira-integration",
+                "name": "Jira Integration",
+                "version": "1.0.0",
+                "description": "Jira integration extension",
+                "_install_allowed": False,
+                "_catalog_name": "community",
+            }
+        ]
+
+        with patch("specify_cli.extensions.ExtensionCatalog", return_value=mock_catalog), \
+             patch.object(Path, "cwd", return_value=project_dir):
+            result = runner.invoke(
+                app,
+                ["extension", "add", "Jira Integration"],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 1, result.output
+        output = " ".join(result.output.split())
+        # Suggested command uses the resolved ID and stays a single token.
+        assert "add acme-jira-integration --from" in output
+        # It must not emit the space-containing display name as the command target.
+        assert "add Jira Integration --from" not in output
+
+    def test_add_discovery_only_error_neutralizes_unsafe_id(self, tmp_path):
+        """A catalog-controlled ID with shell metacharacters must never be
+        interpolated into the suggested command; it is replaced by a literal
+        placeholder so copying the command can't execute injected shell text."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch, MagicMock
+        from specify_cli import app
+
+        runner = CliRunner()
+
+        project_dir = tmp_path / "test-project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".specify" / "extensions").mkdir(parents=True)
+
+        malicious_id = "foo; rm -rf ~"
+        mock_catalog = MagicMock()
+        mock_catalog.get_extension_info.return_value = {
+            "id": malicious_id,
+            "name": "Evil Ext",
+            "version": "1.0.0",
+            "description": "malicious",
+            "_install_allowed": False,
+            "_catalog_name": "community",
+        }
+        mock_catalog.search.return_value = []
+
+        with patch("specify_cli.extensions.ExtensionCatalog", return_value=mock_catalog), \
+             patch.object(Path, "cwd", return_value=project_dir):
+            result = runner.invoke(
+                app,
+                ["extension", "add", malicious_id],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 1, result.output
+        output = " ".join(result.output.split())
+        # The runnable command uses a literal placeholder, never the raw ID.
+        assert "add <extension-id> --from" in output
+        # The malicious ID is never rendered as the target of an install command.
+        assert f"add {malicious_id} --from" not in output
+        assert "add foo; rm" not in output
+
+    def test_command_safe_id_rejects_leading_hyphen(self):
+        """An ID like ``--force`` matches the manifest character rule but Typer
+        would parse it as an option, not the positional extension argument, so
+        the helper must fall back to the placeholder."""
+        from specify_cli.extensions._commands import _command_safe_id
+
+        assert _command_safe_id("--force") == "<extension-id>"
+        assert _command_safe_id("-x") == "<extension-id>"
+        # A normal slug is still returned verbatim.
+        assert _command_safe_id("acme-thing") == "acme-thing"
+
+    def test_info_discovery_only_shows_candidate_archive_url(self, tmp_path):
+        """For a discovery-only entry that carries a ``download_url``, ``info``
+        surfaces the candidate archive URL (flagged for vetting) and the vetted
+        ``--from`` install guidance, so users have a CLI path to the URL."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch, MagicMock
+        from specify_cli import app
+
+        runner = CliRunner()
+
+        project_dir = tmp_path / "test-project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".specify" / "extensions").mkdir(parents=True)
+
+        archive_url = "https://example.com/acme-thing-1.0.0.zip"
+        mock_catalog = MagicMock()
+        mock_catalog.get_extension_info.return_value = {
+            "id": "acme-thing",
+            "name": "Acme Thing",
+            "version": "1.0.0",
+            "description": "A thing",
+            "download_url": archive_url,
+            "_install_allowed": False,
+            "_catalog_name": "community",
+        }
+        mock_catalog.search.return_value = []
+
+        with patch("specify_cli.extensions.ExtensionCatalog", return_value=mock_catalog), \
+             patch("specify_cli.extensions.ExtensionManager") as mock_mgr, \
+             patch.object(Path, "cwd", return_value=project_dir):
+            mock_mgr.return_value.registry.is_installed.return_value = False
+            result = runner.invoke(
+                app,
+                ["extension", "info", "acme-thing"],
+                catch_exceptions=True,
+            )
+
+        output = " ".join(result.output.split())
+        assert "discovery-only" in output
+        assert f"Candidate archive (vet before installing): {archive_url}" in output
+        assert "specify extension add acme-thing --from <archive-url>" in output
+
+    def test_info_discovery_only_without_url_falls_back(self, tmp_path):
+        """A discovery-only entry lacking ``download_url`` still gets vetted
+        ``--from`` guidance, without claiming a candidate archive it doesn't
+        have."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch, MagicMock
+        from specify_cli import app
+
+        runner = CliRunner()
+
+        project_dir = tmp_path / "test-project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".specify" / "extensions").mkdir(parents=True)
+
+        mock_catalog = MagicMock()
+        mock_catalog.get_extension_info.return_value = {
+            "id": "acme-thing",
+            "name": "Acme Thing",
+            "version": "1.0.0",
+            "description": "A thing",
+            "_install_allowed": False,
+            "_catalog_name": "community",
+        }
+        mock_catalog.search.return_value = []
+
+        with patch("specify_cli.extensions.ExtensionCatalog", return_value=mock_catalog), \
+             patch("specify_cli.extensions.ExtensionManager") as mock_mgr, \
+             patch.object(Path, "cwd", return_value=project_dir):
+            mock_mgr.return_value.registry.is_installed.return_value = False
+            result = runner.invoke(
+                app,
+                ["extension", "info", "acme-thing"],
+                catch_exceptions=True,
+            )
+
+        output = " ".join(result.output.split())
+        assert "Candidate archive" not in output
+        assert "vetted its release archive" in output
+        assert "specify extension add acme-thing --from <archive-url>" in output
 
     def test_info_by_name_tolerates_non_string_catalog_name(self, tmp_path):
         """Display-name resolution must not crash on a non-string catalog name.
@@ -8950,6 +9212,212 @@ class TestExtensionUpdateCLI:
             project_dir / ".specify" / "extensions" / "test-ext" / "linear-config.yml"
         ).read_text()
         assert restored_config_content == original_config_content
+
+    def test_update_installs_bundled_extension_from_local_copy(self, tmp_path):
+        """A bundled extension (no download URL) updates from the copy shipped
+        with the running spec-kit release instead of failing at download (#4345)."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        runner = CliRunner()
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".claude" / "skills").mkdir(parents=True)
+
+        manager = ExtensionManager(project_dir)
+        v1_dir = self._create_extension_source(tmp_path, "1.0.0")
+        manager.install_from_directory(v1_dir, "0.1.0")
+        v2_dir = self._create_extension_source(tmp_path, "2.0.0")
+
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch.object(ExtensionCatalog, "get_extension_info", return_value={
+                 "id": "test-ext",
+                 "name": "Test Extension",
+                 "version": "2.0.0",
+                 "bundled": True,
+                 "_install_allowed": True,
+             }), \
+             patch(
+                 "specify_cli._locate_bundled_extension", return_value=v2_dir
+             ), \
+             patch.object(
+                 ExtensionCatalog,
+                 "download_extension",
+                 side_effect=AssertionError("bundled update must not download"),
+             ):
+            result = runner.invoke(
+                app, ["extension", "update", "test-ext"], input="y\n", catch_exceptions=True
+            )
+
+        flat = " ".join(result.output.split())
+        assert result.exit_code == 0, result.output
+        assert "Updated to v2.0.0" in flat
+        assert ExtensionManager(project_dir).registry.get("test-ext")["version"] == "2.0.0"
+
+    def test_update_bundled_blocked_when_local_copy_lags_catalog(self, tmp_path):
+        """When the catalog advertises a newer version than the running release
+        bundles, the update is reported as requiring a spec-kit upgrade instead
+        of being offered and then failing."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        runner = CliRunner()
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".claude" / "skills").mkdir(parents=True)
+
+        manager = ExtensionManager(project_dir)
+        v1_dir = self._create_extension_source(tmp_path, "1.0.0")
+        manager.install_from_directory(v1_dir, "0.1.0")
+
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch.object(ExtensionCatalog, "get_extension_info", return_value={
+                 "id": "test-ext",
+                 "name": "Test Extension",
+                 "version": "2.0.0",
+                 "bundled": True,
+                 "_install_allowed": True,
+             }), \
+             patch(
+                 "specify_cli._locate_bundled_extension", return_value=v1_dir
+             ):
+            result = runner.invoke(
+                app, ["extension", "update", "test-ext"], catch_exceptions=True
+            )
+
+        flat = " ".join(result.output.split())
+        assert result.exit_code == 0, result.output
+        assert "only ships v1.0.0" in flat
+        assert "upgrade spec-kit" in flat
+        assert "Update these extensions?" not in flat
+        assert "All extensions are up to date!" not in flat
+        assert ExtensionManager(project_dir).registry.get("test-ext")["version"] == "1.0.0"
+
+    def test_update_bundled_blocked_when_local_copy_is_intermediate_version(self, tmp_path):
+        """A bundled copy newer than the installation but older than the
+        catalog must be blocked, not installed: an intermediate version would
+        leave the project lagging the catalog while reporting success."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        runner = CliRunner()
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".claude" / "skills").mkdir(parents=True)
+
+        manager = ExtensionManager(project_dir)
+        v1_dir = self._create_extension_source(tmp_path, "1.0.0")
+        manager.install_from_directory(v1_dir, "0.1.0")
+        v2_dir = self._create_extension_source(tmp_path, "2.0.0")
+
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch.object(ExtensionCatalog, "get_extension_info", return_value={
+                 "id": "test-ext",
+                 "name": "Test Extension",
+                 "version": "3.0.0",
+                 "bundled": True,
+                 "_install_allowed": True,
+             }), \
+             patch(
+                 "specify_cli._locate_bundled_extension", return_value=v2_dir
+             ), \
+             patch.object(
+                 ExtensionCatalog,
+                 "download_extension",
+                 side_effect=AssertionError("blocked bundled update must not download"),
+             ):
+            result = runner.invoke(
+                app, ["extension", "update", "test-ext"], catch_exceptions=True
+            )
+
+        flat = " ".join(result.output.split())
+        assert result.exit_code == 0, result.output
+        assert "only ships v2.0.0" in flat
+        assert "upgrade spec-kit" in flat
+        assert "Update these extensions?" not in flat
+        assert ExtensionManager(project_dir).registry.get("test-ext")["version"] == "1.0.0"
+
+    def test_update_installs_bundled_copy_newer_than_catalog(self, tmp_path):
+        """A dev/source checkout can ship a copy newer than the fetched
+        catalog advertises; the local copy is offered and installed."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        runner = CliRunner()
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".claude" / "skills").mkdir(parents=True)
+
+        manager = ExtensionManager(project_dir)
+        v1_dir = self._create_extension_source(tmp_path, "1.0.0")
+        manager.install_from_directory(v1_dir, "0.1.0")
+        v3_dir = self._create_extension_source(tmp_path, "3.0.0")
+
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch.object(ExtensionCatalog, "get_extension_info", return_value={
+                 "id": "test-ext",
+                 "name": "Test Extension",
+                 "version": "2.0.0",
+                 "bundled": True,
+                 "_install_allowed": True,
+             }), \
+             patch(
+                 "specify_cli._locate_bundled_extension", return_value=v3_dir
+             ):
+            result = runner.invoke(
+                app, ["extension", "update", "test-ext"], input="y\n", catch_exceptions=True
+            )
+
+        flat = " ".join(result.output.split())
+        assert result.exit_code == 0, result.output
+        assert "Updated to v3.0.0" in flat
+        assert ExtensionManager(project_dir).registry.get("test-ext")["version"] == "3.0.0"
+
+    def test_update_bundled_blocked_when_no_local_copy_exists(self, tmp_path):
+        """A bundled catalog entry with no locally shipped copy points at a
+        spec-kit upgrade instead of failing the update at download time."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        runner = CliRunner()
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".claude" / "skills").mkdir(parents=True)
+
+        manager = ExtensionManager(project_dir)
+        v1_dir = self._create_extension_source(tmp_path, "1.0.0")
+        manager.install_from_directory(v1_dir, "0.1.0")
+
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch.object(ExtensionCatalog, "get_extension_info", return_value={
+                 "id": "test-ext",
+                 "name": "Test Extension",
+                 "version": "2.0.0",
+                 "bundled": True,
+                 "_install_allowed": True,
+             }), \
+             patch(
+                 "specify_cli._locate_bundled_extension", return_value=None
+             ):
+            result = runner.invoke(
+                app, ["extension", "update", "test-ext"], catch_exceptions=True
+            )
+
+        flat = " ".join(result.output.split())
+        assert result.exit_code == 0, result.output
+        assert "does not ship a local copy" in flat
+        assert "upgrade spec-kit" in flat
+        assert ExtensionManager(project_dir).registry.get("test-ext")["version"] == "1.0.0"
 
     def test_update_failure_rolls_back_registry_hooks_and_commands(self, tmp_path, monkeypatch):
         """Failed update should restore original registry, hooks, and command files."""

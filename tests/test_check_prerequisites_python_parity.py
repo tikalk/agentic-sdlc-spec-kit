@@ -248,6 +248,78 @@ def test_python_json_output_matches_bash(prereq_repo: Path, args: tuple[str, ...
 
 
 @requires_bash
+def test_python_require_spec_matches_bash(prereq_repo: Path) -> None:
+    feat = prereq_repo / "specs" / "001-my-feature"
+    feat.mkdir(parents=True)
+    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+    (feat / "tasks.md").write_text("# tasks\n", encoding="utf-8")
+    _write_feature_json(prereq_repo)
+
+    # spec.md is missing, and without the flag that stays the caller's problem
+    bash_without = _run(_bash_cmd(prereq_repo, "--json", "--require-tasks"), prereq_repo)
+    py_without = _run(_py_cmd(prereq_repo, "--json", "--require-tasks"), prereq_repo)
+    assert py_without.returncode == bash_without.returncode == 0
+
+    # with the flag both variants fail the same way and name the same command
+    bash_missing = _run(
+        _bash_cmd(prereq_repo, "--json", "--require-spec", "--require-tasks"), prereq_repo
+    )
+    py_missing = _run(
+        _py_cmd(prereq_repo, "--json", "--require-spec", "--require-tasks"), prereq_repo
+    )
+    assert py_missing.returncode == bash_missing.returncode == 1
+    assert py_missing.stderr == bash_missing.stderr
+    assert "spec.md not found" in bash_missing.stderr
+
+    # and once the spec exists the flag is satisfied
+    (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
+    bash_present = _run(
+        _bash_cmd(prereq_repo, "--json", "--require-spec", "--require-tasks"), prereq_repo
+    )
+    py_present = _run(
+        _py_cmd(prereq_repo, "--json", "--require-spec", "--require-tasks"), prereq_repo
+    )
+    assert py_present.returncode == bash_present.returncode == 0
+    assert _json_stdout(py_present) == _json_stdout(bash_present)
+
+
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
+def test_powershell_require_spec_matches_python(prereq_repo: Path) -> None:
+    feat = prereq_repo / "specs" / "001-my-feature"
+    feat.mkdir(parents=True)
+    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+    (feat / "tasks.md").write_text("# tasks\n", encoding="utf-8")
+    _write_feature_json(prereq_repo)
+
+    # spec.md is missing, and without the flag that stays the caller's problem
+    ps_without = _run(_ps_cmd(prereq_repo, "-Json", "-RequireTasks"), prereq_repo)
+    py_without = _run(_py_cmd(prereq_repo, "--json", "--require-tasks"), prereq_repo)
+    assert ps_without.returncode == py_without.returncode == 0
+
+    # with the flag both variants fail the same way and name the same file
+    ps_missing = _run(
+        _ps_cmd(prereq_repo, "-Json", "-RequireSpec", "-RequireTasks"), prereq_repo
+    )
+    py_missing = _run(
+        _py_cmd(prereq_repo, "--json", "--require-spec", "--require-tasks"), prereq_repo
+    )
+    assert ps_missing.returncode == py_missing.returncode == 1
+    assert "spec.md not found" in ps_missing.stderr
+    assert "spec.md not found" in py_missing.stderr
+
+    # and once the spec exists the flag is satisfied and the payloads agree
+    (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
+    ps_present = _run(
+        _ps_cmd(prereq_repo, "-Json", "-RequireSpec", "-RequireTasks"), prereq_repo
+    )
+    py_present = _run(
+        _py_cmd(prereq_repo, "--json", "--require-spec", "--require-tasks"), prereq_repo
+    )
+    assert ps_present.returncode == py_present.returncode == 0
+    assert _json_stdout(ps_present) == _json_stdout(py_present)
+
+
+@requires_bash
 def test_python_text_output_matches_bash(prereq_repo: Path) -> None:
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True)
@@ -564,3 +636,38 @@ class TestGetInvokeSeparatorTolerance:
             "integration_settings": {"droid": {"invoke_separator": "-"}},
         })
         assert common.get_invoke_separator(self._repo(tmp_path, body)) == "-"
+
+
+@pytest.mark.skipif(
+    not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available"
+)
+def test_powershell_text_output_lists_available_docs(prereq_repo: Path) -> None:
+    """Text mode must print a status line per document, like the twins.
+
+    `Test-FileExists` / `Test-DirHasFiles` report their line with `Write-Output`
+    and ALSO `return $true/$false`, both on the Success stream. The callers piped
+    the whole call to `| Out-Null` to discard the boolean, which discarded the
+    report line too — so `AVAILABLE_DOCS:` was emitted with nothing under it
+    while the bash and Python twins list every document.
+    """
+    feat = prereq_repo / "specs" / "001-my-feature"
+    feat.mkdir(parents=True)
+    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+    (feat / "research.md").write_text("# research\n", encoding="utf-8")
+    _write_feature_json(prereq_repo)
+
+    ps = _run(_ps_cmd(prereq_repo, "-IncludeTasks"), prereq_repo)
+
+    assert ps.returncode == 0, ps.stderr
+    assert "AVAILABLE_DOCS:" in ps.stdout
+    for doc in (
+        "research.md",
+        "data-model.md",
+        "contracts/",
+        "quickstart.md",
+        "tasks.md",
+    ):
+        assert doc in ps.stdout, (doc, ps.stdout)
+    # The existing file reports [OK], the missing ones [FAIL].
+    assert "[OK] research.md" in _normalize_status_text(ps.stdout), ps.stdout
+    assert "[FAIL] quickstart.md" in _normalize_status_text(ps.stdout), ps.stdout

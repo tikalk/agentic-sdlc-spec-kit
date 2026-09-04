@@ -1,9 +1,9 @@
 ---
 description: Assess the codebase against spec, plan, and tasks; append remaining work as new tasks, or if converged, run test gate, diff analysis, and 4-pillar quality assessment
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
-  py: scripts/python/check_prerequisites.py --json --require-tasks --include-tasks
+  sh: scripts/bash/check-prerequisites.sh --json --require-spec --require-tasks --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireSpec -RequireTasks -IncludeTasks
+  py: scripts/python/check_prerequisites.py --json --require-spec --require-tasks --include-tasks
 ---
 
 ## MANDATORY: Pre-Execution Hooks

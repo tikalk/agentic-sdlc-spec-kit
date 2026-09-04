@@ -63,6 +63,20 @@ def _content_sha256(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+def _is_comparable_version(value: str) -> bool:
+    """Return whether a recorded version can be evaluated against a specifier.
+
+    ``version_satisfies()`` answers "does not satisfy" for an unparseable
+    version, which is indistinguishable from a genuine mismatch. Callers that
+    need to tell those apart check here first.
+    """
+    try:
+        pkg_version.Version(value)
+    except pkg_version.InvalidVersion:
+        return False
+    return True
+
+
 def _constitution_is_generated(
     project_root: Path,
     memory_constitution: Path,
@@ -107,7 +121,7 @@ def _constitution_provenance_matches_preset(
         return False
     try:
         metadata = json.loads(provenance.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError):
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return False
     return (
         isinstance(metadata, dict)
@@ -381,6 +395,14 @@ class PresetManifest:
                 f"got {type(requires['speckit_version']).__name__}"
             )
 
+        # Validate the optional extension dependency list. A preset that
+        # overrides commands calling into an extension is inert without it, and
+        # until now the only place that could be said was the README -- see
+        # issue #4231. Absent means "no dependencies", so every existing preset
+        # stays valid.
+        if "extensions" in requires:
+            self._validate_requires_extensions(requires["extensions"])
+
         # Validate provides section
         provides = self.data["provides"]
         if "templates" not in provides:
@@ -409,6 +431,7 @@ class PresetManifest:
             raise PresetValidationError(
                 "Preset must provide at least one template"
             )
+        seen_name_types: set[tuple[str, str]] = set()
         for tmpl in templates:
             if not isinstance(tmpl, dict):
                 raise PresetValidationError(
@@ -437,6 +460,20 @@ class PresetManifest:
                     f"Invalid template type '{tmpl['type']}': "
                     f"must be one of {sorted(VALID_PRESET_TEMPLATE_TYPES)}"
                 )
+
+            # PresetResolver._manifest_declared_template returns the first
+            # 'provides.templates' entry matching a given (name, type) pair, so
+            # a later duplicate would be silently unreachable while still being
+            # counted by PresetManifest.templates. Reject at validation time
+            # instead, mirroring the sibling fix for ExtensionManifest's
+            # provides.templates/scripts (#4016).
+            name_type = (tmpl["name"], tmpl["type"])
+            if name_type in seen_name_types:
+                raise PresetValidationError(
+                    f"Duplicate template name '{tmpl['name']}' of type "
+                    f"'{tmpl['type']}' in 'provides.templates'"
+                )
+            seen_name_types.add(name_type)
 
             # Validate file path safety: must be relative, no parent traversal
             file_path = tmpl["file"]
@@ -509,10 +546,120 @@ class PresetManifest:
         """Get preset author."""
         return self.data["preset"].get("author", "")
 
+    @staticmethod
+    def _validate_requires_extensions(declared: Any) -> None:
+        """Validate the optional ``requires.extensions`` list.
+
+        Accepts either a bare extension id or a mapping carrying an optional
+        version specifier and an optional ``required`` flag:
+
+        .. code-block:: yaml
+
+            requires:
+              extensions:
+                - speckit-inventory
+                - id: other-ext
+                  version: ">=1.2.0"
+                  required: false
+
+        Raises:
+            PresetValidationError: If the list or any entry is malformed.
+        """
+        if not isinstance(declared, list):
+            raise PresetValidationError(
+                "Invalid requires.extensions: expected a list, "
+                f"got {type(declared).__name__}"
+            )
+
+        for index, entry in enumerate(declared):
+            label = f"requires.extensions[{index}]"
+
+            if isinstance(entry, str):
+                entry = {"id": entry}
+            elif not isinstance(entry, dict):
+                raise PresetValidationError(
+                    f"Invalid {label}: expected a string or a mapping, "
+                    f"got {type(entry).__name__}"
+                )
+
+            if "id" not in entry:
+                raise PresetValidationError(f"Missing {label}.id")
+            extension_id = entry["id"]
+            if not isinstance(extension_id, str):
+                raise PresetValidationError(
+                    f"Invalid {label}.id: expected a string, "
+                    f"got {type(extension_id).__name__}"
+                )
+            # Same id shape the extension loader enforces, so a dependency can
+            # never name something that could not be installed in the first
+            # place. fullmatch rather than match with an anchored pattern: `$`
+            # also matches before a trailing newline, so "demo-ext\n" would
+            # otherwise validate here while PresetResolver._is_safe_registry_id
+            # (which uses fullmatch) rejects it, and the newline would land in
+            # a suggested command.
+            if not re.fullmatch(r'[a-z0-9-]+', extension_id):
+                raise PresetValidationError(
+                    f"Invalid {label}.id {extension_id!r}: "
+                    "must be lowercase alphanumeric with hyphens only"
+                )
+
+            if "version" in entry:
+                constraint = entry["version"]
+                # Mirrors the requires.speckit_version reasoning: a non-string
+                # escapes InvalidSpecifier two ways -- scalars raise TypeError
+                # from the constructor, and a list/dict is iterable so it
+                # constructs and only fails later inside .contains().
+                if not isinstance(constraint, str) or not constraint.strip():
+                    raise PresetValidationError(
+                        f"Invalid {label}.version: expected a non-empty string, "
+                        f"got {type(constraint).__name__}"
+                    )
+                try:
+                    SpecifierSet(constraint)
+                except InvalidSpecifier:
+                    raise PresetValidationError(
+                        f"Invalid {label}.version '{constraint}': "
+                        "not a valid version specifier"
+                    )
+
+            if "required" in entry and not isinstance(entry["required"], bool):
+                raise PresetValidationError(
+                    f"Invalid {label}.required: expected a boolean, "
+                    f"got {type(entry['required']).__name__}"
+                )
+
     @property
     def requires_speckit_version(self) -> str:
         """Get required spec-kit version range."""
         return self.data["requires"]["speckit_version"]
+
+    @property
+    def requires_extensions(self) -> List[Dict[str, Any]]:
+        """Get declared extension dependencies, normalized to mappings.
+
+        Returns:
+            One entry per dependency with ``id``, ``version`` (``None`` when
+            unconstrained), and ``required`` (defaulting to ``True``). Empty
+            when the manifest declares no dependencies.
+        """
+        declared = self.data["requires"].get("extensions")
+        if not isinstance(declared, list):
+            return []
+
+        normalized: List[Dict[str, Any]] = []
+        for entry in declared:
+            if isinstance(entry, str):
+                entry = {"id": entry}
+            if not isinstance(entry, dict) or not isinstance(entry.get("id"), str):
+                continue
+            normalized.append(
+                {
+                    "id": entry["id"],
+                    "version": entry.get("version"),
+                    "required": entry.get("required", True),
+                }
+            )
+        return normalized
 
     @property
     def templates(self) -> List[Dict[str, Any]]:
@@ -526,8 +673,11 @@ class PresetManifest:
 
     def get_hash(self) -> str:
         """Calculate SHA256 hash of manifest file."""
+        h = hashlib.sha256()
         with open(self.path, 'rb') as f:
-            return f"sha256:{hashlib.sha256(f.read()).hexdigest()}"
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        return f"sha256:{h.hexdigest()}"
 
 
 class PresetRegistry:
@@ -823,24 +973,152 @@ class PresetManager:
 
         return True
 
-    def _extension_installed_for_command(self, command_name: str) -> bool:
-        """Whether *command_name* may be materialized in this project.
+    def find_unmet_extension_dependencies(
+        self,
+        manifest: PresetManifest
+    ) -> List[Dict[str, Any]]:
+        """Find declared extension dependencies that are not satisfied.
 
-        Extension command overrides follow ``speckit.<ext-id>.<cmd-name>``;
-        they must be skipped everywhere preset artifacts are written —
-        registration *and* reconciliation — when the extension isn't
-        installed, or reconciliation would materialize files that
-        registration refused to track. Core commands (single-dot names,
-        e.g. ``speckit.specify``) always pass.
+        Reports rather than raises. A preset whose overrides call into an
+        extension is written to degrade safely -- without the extension the
+        core workflow still runs -- so a missing dependency is a warning, not
+        an install failure. See issue #4231.
+
+        Args:
+            manifest: Preset manifest to inspect
+
+        Returns:
+            One entry per unsatisfied dependency, each with ``id``, the
+            requested ``version`` specifier (``None`` when unconstrained), the
+            ``installed`` version (``None`` when absent or unusable), and a
+            ``reason`` of ``"missing"``, ``"corrupt"``, ``"stale"``,
+            ``"disabled"``, or ``"version"``. Optional dependencies
+            (``required: false``) are never reported.
+
+            An unreadable registry yields no results rather than raising, since
+            this runs after the install has already succeeded.
+
+            A registry version that cannot be parsed is treated as
+            uncomparable, not as a mismatch: the extension is installed and
+            usable, and only its recorded version is unreadable. An extension
+            present on disk but absent from the registry is likewise treated as
+            satisfied, because resolution admits unregistered directories.
         """
-        parts = command_name.split(".")
-        if len(parts) >= 3 and parts[0] == "speckit":
-            ext_id = parts[1]
-            if not (
-                self.project_root / ".specify" / "extensions" / ext_id
-            ).is_dir():
-                return False
-        return True
+        # Defense in depth, mirroring check_compatibility(): this method is
+        # public and also reachable with a hand-built manifest object that
+        # predates this field. A manifest without it declares nothing.
+        candidates = getattr(manifest, "requires_extensions", None)
+        if not isinstance(candidates, list):
+            return []
+
+        # Collapse exact repeats so a manifest naming the same dependency twice
+        # warns once. Two entries for one id with *different* constraints are
+        # kept, since both genuinely have to hold.
+        declared: List[Dict[str, Any]] = []
+        seen: Set[tuple] = set()
+        for dep in candidates:
+            if not isinstance(dep, dict) or not dep.get("required", True):
+                continue
+            key = (dep.get("id"), dep.get("version"))
+            if key in seen:
+                continue
+            seen.add(key)
+            declared.append(dep)
+        if not declared:
+            return []
+
+        extensions_dir = self.project_root / ".specify" / "extensions"
+        try:
+            registry = ExtensionRegistry(extensions_dir)
+            registered_ids = registry.keys()
+            registry_corrupt = registry.is_corrupt()
+        except OSError:
+            # Both reads can raise: _load() recovers from malformed content but
+            # deliberately lets OSError through, and is_corrupt() re-reads the
+            # file. This check runs *after* the install has completed, and
+            # preset_add only handles preset-domain errors, so letting that
+            # escape would turn a finished install into a traceback over a
+            # warning. An unreadable registry simply cannot be inspected.
+            return []
+
+        unmet: List[Dict[str, Any]] = []
+
+        for dep in declared:
+            metadata = registry.get(dep["id"])
+            if metadata is None:
+                # An absent registry entry does not mean the extension is
+                # unusable. _get_all_extensions_by_priority() admits a safe
+                # on-disk directory as an unregistered extension at implicit
+                # priority 10, so it resolves and the preset works -- but only
+                # when the registry is readable, since a corrupt one makes that
+                # path fail closed and contribute nothing.
+                #
+                # get() returns None for a corrupted (non-dict) entry as well as
+                # an absent one, but keys() retains corrupted ids -- both so
+                # resolution does not re-admit their directories as
+                # unregistered, and because is_installed() still counts them, so
+                # a plain `extension add` would be refused as already installed.
+                # That is a different state from absent, and needs a different
+                # remedy.
+                if dep["id"] in registered_ids:
+                    unmet.append({**dep, "installed": None, "reason": "corrupt"})
+                    continue
+                if (
+                    (extensions_dir / dep["id"]).is_dir()
+                    and PresetResolver._is_safe_registry_id(dep["id"])
+                    and not registry_corrupt
+                ):
+                    # Unregistered means no recorded version, so a constraint
+                    # cannot be evaluated -- uncomparable, not unsatisfied.
+                    continue
+                unmet.append({**dep, "installed": None, "reason": "missing"})
+                continue
+
+            installed_version = metadata.get("version")
+            installed_version = (
+                installed_version if isinstance(installed_version, str) else None
+            )
+
+            # A registry entry is not proof the extension can contribute. If
+            # its directory is gone, PresetResolver skips it outright (both
+            # template lookup and layer collection guard on ``is_dir()``), so
+            # the preset is as inert as if it were never installed -- but the
+            # surviving entry would otherwise read as satisfied.
+            if not (extensions_dir / dep["id"]).is_dir():
+                unmet.append(
+                    {**dep, "installed": installed_version, "reason": "stale"}
+                )
+                continue
+
+            # A disabled extension is registered but contributes nothing:
+            # resolution skips it (see _collect_extension_layers), so the
+            # preset is just as inert as if it were absent. Report it before
+            # any version check -- enabling it is the prerequisite, and the
+            # version may well be fine once it is.
+            if not metadata.get("enabled", True):
+                unmet.append(
+                    {**dep, "installed": installed_version, "reason": "disabled"}
+                )
+                continue
+
+            constraint = dep["version"]
+            if not constraint:
+                continue
+
+            # A version that cannot be compared is not a mismatch. Absent or
+            # non-string is one way to be unusable; an unparseable string such
+            # as "unknown" is another, and version_satisfies() cannot tell them
+            # apart -- it catches InvalidVersion and returns False, which would
+            # report a mismatch against a version nobody can evaluate. Check
+            # parseability up front so only real comparisons reach the warning.
+            if installed_version is None or not _is_comparable_version(installed_version):
+                continue
+            if not version_satisfies(installed_version, constraint):
+                unmet.append(
+                    {**dep, "installed": installed_version, "reason": "version"}
+                )
+
+        return unmet
 
     def _register_commands(
         self,
@@ -870,21 +1148,20 @@ class PresetManager:
         if not command_templates:
             return {}
 
-        # Filter out extension command overrides if the extension isn't installed.
-        filtered = [
-            cmd
-            for cmd in command_templates
-            if self._extension_installed_for_command(cmd["name"])
-        ]
-
-        if not filtered:
-            return {}
-
+        # A preset command template always ships its own body, so it is
+        # self-contained and scaffolds regardless of whether any similarly
+        # named extension is installed. Namespaced names (speckit.<ns>.<cmd>)
+        # are treated exactly like short names (speckit.<cmd>) — they are NOT
+        # filtered out just because ``.specify/extensions/<ns>/`` is absent.
+        # The only command that cannot be materialized is a composition
+        # (prepend/append/wrap) with no base layer to compose onto; that case
+        # is handled per-command below (warn + skip), not by dropping names up
+        # front.
         # Handle composition strategies: resolve composed content for non-replace commands
         resolver = PresetResolver(self.project_root)
         composed_dir = None
         commands_to_register = []
-        for cmd in filtered:
+        for cmd in command_templates:
             strategy = cmd.get("strategy", "replace")
             if strategy != "replace":
                 # Only pre-compose if this preset is the top composing layer.
@@ -907,13 +1184,23 @@ class PresetManager:
                             "file": f".composed/{cmd['name']}.md",
                         })
                     else:
-                        raise PresetValidationError(
-                            f"Command '{cmd['name']}' uses '{strategy}' strategy "
-                            f"but no base command layer exists to compose onto. "
-                            f"Ensure a lower-priority preset, extension, or core "
-                            f"command provides this command before using "
-                            f"composition strategies."
+                        # No base layer to compose onto (e.g. the command it
+                        # would wrap comes from an extension that isn't
+                        # installed). Warn and skip this single command rather
+                        # than aborting the whole install — mirrors the
+                        # "composed is None" branch in
+                        # _reconcile_composed_commands so command-mode and
+                        # reconciliation behave identically.
+                        import warnings
+                        warnings.warn(
+                            f"Command '{cmd['name']}' uses '{strategy}' "
+                            f"strategy but no base command layer exists to "
+                            f"compose onto; skipping. Provide a lower-priority "
+                            f"preset, extension, or core command for it before "
+                            f"using composition strategies.",
+                            stacklevel=2,
                         )
+                        continue
                 else:
                     # Not the top layer — register raw file; reconciliation
                     # will overwrite with the correct composed/winning content.
@@ -1753,21 +2040,13 @@ class PresetManager:
         if not command_names:
             return set()
 
-        # Never materialize extension-scoped commands whose extension isn't
-        # installed. Registration (_register_commands / _register_skills)
-        # already refuses them, so a reconciliation pass writing them would
-        # create files no registry entry tracks. Filtering here — the single
-        # chokepoint every install/remove/rescaffold reconciliation funnels
-        # through — keeps all callers consistent without each one re-applying
-        # the filter when seeding names from manifest templates.
-        command_names = [
-            name
-            for name in command_names
-            if self._extension_installed_for_command(name)
-        ]
-        if not command_names:
-            return set()
-
+        # Every preset-owned command name flows through unchanged. Names are
+        # NOT filtered by the ``speckit.<ns>.<cmd>`` shape: a self-contained
+        # preset command scaffolds whether or not a like-named extension is
+        # installed (parity with _register_commands), and a name whose base
+        # layer has disappeared must still reach the loop below so its now
+        # uncomposable stale file gets unregistered. The loop already skips
+        # names that resolve to no layers at all (``if not layers: continue``).
         try:
             from ..agents import CommandRegistrar
         except ImportError:
@@ -1890,7 +2169,7 @@ class PresetManager:
                                     )
                                     record_written(written)
                                     registered = True
-                            except Exception:
+                            except (ImportError, FileNotFoundError, OSError):
                                 # Extension registration failed; fall back to
                                 # generic path-based registration below.
                                 pass
@@ -2208,14 +2487,11 @@ class PresetManager:
         if not command_names:
             return set()
 
-        command_names = [
-            name
-            for name in command_names
-            if self._extension_installed_for_command(name)
-        ]
-        if not command_names:
-            return set()
-
+        # Preset-owned command names are not filtered by the
+        # ``speckit.<ns>.<cmd>`` shape here either: a self-contained preset
+        # command renders its skill whether or not a like-named extension is
+        # installed. The per-name loop below skips anything that doesn't
+        # resolve to a managed skill directory.
         resolver = PresetResolver(self.project_root)
         active_skills_dir = self._get_skills_dir()
 
@@ -2761,20 +3037,16 @@ class PresetManager:
         if not command_templates:
             return {}
 
-        # Filter out extension command overrides if the extension isn't installed,
-        # matching the same logic used by _register_commands().
-        filtered = [
-            cmd
-            for cmd in command_templates
-            if self._extension_installed_for_command(cmd["name"])
-        ]
-
-        if not filtered:
-            return {}
-
+        # Preset command templates are self-contained and render as skills
+        # regardless of whether a like-named extension is installed — the same
+        # rule _register_commands() uses. No ``speckit.<ns>.<cmd>`` name-shape
+        # filtering; the per-command loop below skips anything without a target
+        # skill directory.
         skills_dir = target_dir if target_dir is not None else self._get_skills_dir()
         if not skills_dir:
             return {}
+
+        resolver = PresetResolver(self.project_root)
 
         from .. import SKILL_DESCRIPTIONS, load_init_options
         from ..agents import CommandRegistrar
@@ -2805,15 +3077,13 @@ class PresetManager:
 
         written: List[str] = []
 
-        # Build a set of command names that have 'replaces' directives
-        # These should create skills even if create_missing_skills is False
+        # Build a set of command names that have 'replaces' directives.
+        # These should create skills even if create_missing_skills is False.
         replaced_commands = {
-            t.get("replaces") for t in filtered if t.get("replaces")
+            t.get("replaces") for t in command_templates if t.get("replaces")
         }
 
-        written: List[str] = []
-
-        for cmd_tmpl in filtered:
+        for cmd_tmpl in command_templates:
             cmd_name = cmd_tmpl["name"]
             cmd_file_rel = cmd_tmpl["file"]
             source_file = preset_dir / cmd_file_rel
@@ -2865,6 +3135,29 @@ class PresetManager:
             # Parse the command file
             content = source_file.read_text(encoding="utf-8")
             frontmatter, body = registrar.parse_frontmatter(content)
+
+            # A composition-strategy command (wrap/prepend/append) needs a
+            # base layer to compose onto. When _register_commands produced no
+            # composed file for it and the stack still has no base
+            # (resolve_content is None) — e.g. the command it wraps comes from
+            # an extension that isn't installed — rendering the raw preset
+            # fragment as a skill would emit broken output: a literal
+            # {CORE_TEMPLATE} for wrap, or only the preset's own fragment for
+            # prepend/append. Skip it here too so command mode and skills mode
+            # agree (mirrors _register_commands, which skips the same command).
+            # _register_commands already warned for this command in the same
+            # pass, so the skip is silent here to avoid a duplicate warning.
+            effective_strategy = (
+                cmd_tmpl.get("strategy")
+                or frontmatter.get("strategy")
+                or "replace"
+            )
+            if (
+                effective_strategy != "replace"
+                and not composed_file.exists()
+                and resolver.resolve_content(cmd_name, "command") is None
+            ):
+                continue
 
             if frontmatter.get("strategy") == "wrap":
                 body, core_frontmatter = _substitute_core_template(body, cmd_name, self.project_root, registrar)
@@ -4289,6 +4582,13 @@ class PresetCatalog:
         try:
             parsed = urlparse(url)
             hostname = parsed.hostname
+            # Accessing ``port`` performs urllib's syntax/range validation;
+            # ``hostname`` alone does not, so a non-numeric or out-of-range
+            # port would otherwise pass validation here and only fail later,
+            # at fetch time, as a raw error this function does not translate
+            # into PresetValidationError. Mirrors specify_cli.catalogs and
+            # bundler/services/adapters.py's copy of this same guard.
+            _ = parsed.port
         except ValueError:
             raise PresetValidationError(f"Catalog URL is malformed: {url}") from None
         is_localhost = hostname in ("localhost", "127.0.0.1", "::1")
@@ -4416,11 +4716,13 @@ class PresetCatalog:
         if not config_path.exists():
             return None
         try:
-            data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+            data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
         except (yaml.YAMLError, OSError, UnicodeError) as e:
             raise PresetValidationError(
                 f"Failed to read catalog config {config_path}: {e}"
             )
+        if data is None:
+            return None
         if not isinstance(data, dict):
             raise PresetValidationError(
                 f"Invalid catalog config {config_path}: expected a mapping at root, got {type(data).__name__}"

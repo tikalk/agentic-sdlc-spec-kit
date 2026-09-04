@@ -40,6 +40,8 @@ from specify_cli.presets import (
     VALID_PRESET_TEMPLATE_TYPES,
 )
 from specify_cli.extensions import ExtensionRegistry
+from specify_cli._console import console
+from specify_cli.presets._commands import _warn_unmet_extension_dependencies
 
 
 # ===== Fixtures =====
@@ -484,7 +486,10 @@ provides:
         manifest = PresetManifest(pack_dir / "preset.yml")
         hash_val = manifest.get_hash()
         assert hash_val.startswith("sha256:")
-        assert len(hash_val) > 10
+        import hashlib
+        content = (pack_dir / "preset.yml").read_bytes()
+        expected = f"sha256:{hashlib.sha256(content).hexdigest()}"
+        assert hash_val == expected
 
     def test_multiple_templates(self, temp_dir, valid_pack_data):
         """Test pack with multiple templates of different types."""
@@ -499,6 +504,102 @@ provides:
             yaml.dump(valid_pack_data, f)
         manifest = PresetManifest(manifest_path)
         assert len(manifest.templates) == 4
+
+    def test_duplicate_template_name_and_type_raises_validation_error(
+        self, temp_dir, valid_pack_data
+    ):
+        """A later entry with the same (name, type) pair must be rejected.
+
+        ``PresetResolver._manifest_declared_template`` returns the FIRST
+        'provides.templates' entry matching a given (name, type) pair, so a
+        later duplicate would be silently unreachable while still being
+        counted by ``PresetManifest.templates`` -- mirroring the sibling bug
+        fixed for ``ExtensionManifest``'s provides.templates/scripts (#4016).
+        """
+        valid_pack_data["provides"]["templates"] = [
+            {"type": "command", "name": "specify", "file": "commands/specify-v1.md"},
+            {"type": "command", "name": "specify", "file": "commands/specify-v2.md"},
+        ]
+        manifest_path = temp_dir / "preset.yml"
+        with open(manifest_path, 'w') as f:
+            yaml.dump(valid_pack_data, f)
+        with pytest.raises(PresetValidationError, match="Duplicate template name"):
+            PresetManifest(manifest_path)
+
+    def test_same_name_different_type_templates_allowed(
+        self, temp_dir, valid_pack_data
+    ):
+        """The same name may recur across different template types."""
+        valid_pack_data["provides"]["templates"] = [
+            {"type": "template", "name": "specify", "file": "templates/specify.md"},
+            {"type": "command", "name": "specify", "file": "commands/specify.md"},
+        ]
+        manifest_path = temp_dir / "preset.yml"
+        with open(manifest_path, 'w') as f:
+            yaml.dump(valid_pack_data, f)
+        manifest = PresetManifest(manifest_path)
+        assert len(manifest.templates) == 2
+
+    def test_requires_extensions_absent_is_valid(self, temp_dir, valid_pack_data):
+        """A preset with no declared dependencies stays valid and reports none."""
+        manifest_path = temp_dir / "preset.yml"
+        with open(manifest_path, 'w') as f:
+            yaml.dump(valid_pack_data, f)
+        assert PresetManifest(manifest_path).requires_extensions == []
+
+    def test_requires_extensions_accepts_both_forms(self, temp_dir, valid_pack_data):
+        """Bare ids and mappings normalize to the same shape."""
+        valid_pack_data["requires"]["extensions"] = [
+            "speckit-inventory",
+            {"id": "other-ext", "version": ">=1.2.0", "required": False},
+        ]
+        manifest_path = temp_dir / "preset.yml"
+        with open(manifest_path, 'w') as f:
+            yaml.dump(valid_pack_data, f)
+
+        assert PresetManifest(manifest_path).requires_extensions == [
+            {"id": "speckit-inventory", "version": None, "required": True},
+            {"id": "other-ext", "version": ">=1.2.0", "required": False},
+        ]
+
+    @pytest.mark.parametrize(
+        "bad, expected",
+        [
+            ("speckit-inventory", "Invalid requires.extensions"),      # str, not list
+            ({"id": "x"}, "Invalid requires.extensions"),              # mapping, not list
+            ([123], r"Invalid requires\.extensions\[0\]"),             # member not str/mapping
+            ([None], r"Invalid requires\.extensions\[0\]"),
+            ([{"version": ">=1"}], r"Missing requires\.extensions\[0\]\.id"),
+            ([{"id": 5}], r"Invalid requires\.extensions\[0\]\.id"),
+            ([{"id": "Bad_ID"}], r"Invalid requires\.extensions\[0\]\.id"),
+            (["Bad_ID"], r"Invalid requires\.extensions\[0\]\.id"),
+            ([{"id": "x", "version": 1.0}], r"Invalid requires\.extensions\[0\]\.version"),
+            ([{"id": "x", "version": "  "}], r"Invalid requires\.extensions\[0\]\.version"),
+            ([{"id": "x", "version": "nonsense"}], r"Invalid requires\.extensions\[0\]\.version"),
+            ([{"id": "x", "required": "yes"}], r"Invalid requires\.extensions\[0\]\.required"),
+            # `$` also matches before a trailing newline, so an anchored
+            # re.match would admit these while the resolver's fullmatch-based
+            # safe-id check rejects them.
+            (["demo-ext\n"], r"Invalid requires\.extensions\[0\]\.id"),
+            ([{"id": "demo-ext\n"}], r"Invalid requires\.extensions\[0\]\.id"),
+            (["demo\next"], r"Invalid requires\.extensions\[0\]\.id"),
+        ],
+    )
+    def test_requires_extensions_rejects_malformed(
+        self, temp_dir, valid_pack_data, bad, expected
+    ):
+        """Malformed dependency declarations fail as PresetValidationError.
+
+        Same reasoning as requires.speckit_version: an unvalidated value reaches
+        ``SpecifierSet`` or ``re.match`` later and surfaces as a bare TypeError
+        that no caller handles as a malformed manifest.
+        """
+        valid_pack_data["requires"]["extensions"] = bad
+        manifest_path = temp_dir / "preset.yml"
+        with open(manifest_path, 'w') as f:
+            yaml.dump(valid_pack_data, f)
+        with pytest.raises(PresetValidationError, match=expected):
+            PresetManifest(manifest_path)
 
 
 # ===== PresetRegistry Tests =====
@@ -784,6 +885,30 @@ class TestPresetRegistry:
 # ===== PresetManager Tests =====
 
 
+def test_unreadable_constitution_provenance_fails_closed(
+    project_dir, monkeypatch
+):
+    from specify_cli.presets import _constitution_provenance_matches_preset
+
+    memory = project_dir / ".specify" / "memory" / "constitution.md"
+    memory.parent.mkdir(parents=True, exist_ok=True)
+    memory.write_text("# Constitution\n", encoding="utf-8")
+    provenance = memory.parent / ".constitution-template.json"
+    provenance.write_text("{}", encoding="utf-8")
+    real_read_text = Path.read_text
+
+    def unreadable(path, *args, **kwargs):
+        if path == provenance:
+            raise OSError("simulated read failure")
+        return real_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", unreadable)
+
+    assert not _constitution_provenance_matches_preset(
+        project_dir, memory, "example", "1.0.0"
+    )
+
+
 class TestPresetManager:
     """Test PresetManager installation and removal."""
 
@@ -1062,6 +1187,534 @@ class TestPresetManager:
         installed = manager.list_installed()
         assert len(installed) == 1
         assert installed[0]["priority"] == 3
+
+
+class TestPresetExtensionDependencies:
+    """Test find_unmet_extension_dependencies (issue #4231)."""
+
+    @staticmethod
+    def _install_extension(
+        project_dir, extension_id, version, enabled=True, with_files=True
+    ):
+        """Register an installed extension the way the extension installer does.
+
+        ``with_files=False`` leaves the registry entry without its directory,
+        reproducing the stale state left behind when the files are deleted out
+        from under the registry.
+        """
+        extensions_dir = project_dir / ".specify" / "extensions"
+        extensions_dir.mkdir(parents=True, exist_ok=True)
+        if with_files:
+            (extensions_dir / extension_id).mkdir(parents=True, exist_ok=True)
+        registry_path = extensions_dir / ".registry"
+        data = {"schema_version": "1.0", "extensions": {}}
+        if registry_path.exists():
+            data = json.loads(registry_path.read_text(encoding="utf-8"))
+        data["extensions"][extension_id] = {"version": version, "enabled": enabled}
+        registry_path.write_text(json.dumps(data), encoding="utf-8")
+
+    @staticmethod
+    def _manifest(temp_dir, valid_pack_data, declared):
+        valid_pack_data["requires"]["extensions"] = declared
+        manifest_path = temp_dir / "dep-preset.yml"
+        with open(manifest_path, 'w') as f:
+            yaml.dump(valid_pack_data, f)
+        return PresetManifest(manifest_path)
+
+    def test_no_declared_dependencies_is_satisfied(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """A preset declaring nothing never reports an unmet dependency."""
+        manifest_path = temp_dir / "plain-preset.yml"
+        with open(manifest_path, 'w') as f:
+            yaml.dump(valid_pack_data, f)
+
+        manager = PresetManager(project_dir)
+        assert manager.find_unmet_extension_dependencies(
+            PresetManifest(manifest_path)
+        ) == []
+
+    def test_missing_dependency_is_reported(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """An uninstalled required extension is reported as missing."""
+        manifest = self._manifest(temp_dir, valid_pack_data, ["speckit-inventory"])
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert len(unmet) == 1
+        assert unmet[0]["id"] == "speckit-inventory"
+        assert unmet[0]["reason"] == "missing"
+        assert unmet[0]["installed"] is None
+
+    def test_installed_dependency_is_satisfied(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """An installed extension with no version constraint is satisfied."""
+        self._install_extension(project_dir, "speckit-inventory", "0.1.0")
+        manifest = self._manifest(temp_dir, valid_pack_data, ["speckit-inventory"])
+
+        assert PresetManager(project_dir).find_unmet_extension_dependencies(
+            manifest
+        ) == []
+
+    def test_satisfied_version_constraint(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """A satisfied version constraint reports nothing."""
+        self._install_extension(project_dir, "speckit-inventory", "1.5.0")
+        manifest = self._manifest(
+            temp_dir, valid_pack_data,
+            [{"id": "speckit-inventory", "version": ">=1.2.0"}],
+        )
+
+        assert PresetManager(project_dir).find_unmet_extension_dependencies(
+            manifest
+        ) == []
+
+    def test_unsatisfied_version_constraint_reports_both_versions(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """A version mismatch reports the installed version alongside the constraint."""
+        self._install_extension(project_dir, "speckit-inventory", "0.1.0")
+        manifest = self._manifest(
+            temp_dir, valid_pack_data,
+            [{"id": "speckit-inventory", "version": ">=9.0.0"}],
+        )
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert len(unmet) == 1
+        assert unmet[0]["reason"] == "version"
+        assert unmet[0]["installed"] == "0.1.0"
+        assert unmet[0]["version"] == ">=9.0.0"
+
+    def test_version_warning_does_not_promise_update_satisfies_constraint(self):
+        """Version remediation must handle constraints update cannot guarantee."""
+        manager = MagicMock()
+        manager.find_unmet_extension_dependencies.return_value = [
+            {
+                "id": "speckit-inventory",
+                "reason": "version",
+                "installed": "3.0.0",
+                "version": "<2",
+            }
+        ]
+
+        with console.capture() as capture:
+            _warn_unmet_extension_dependencies(manager, MagicMock())
+
+        output = " ".join(strip_ansi(capture.get()).split())
+        assert "Needs: a release of speckit-inventory satisfying <2" in output
+        assert "specify extension update" not in output
+
+    def test_optional_dependency_is_never_reported(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """`required: false` opts out of the warning even when absent."""
+        manifest = self._manifest(
+            temp_dir, valid_pack_data,
+            [{"id": "speckit-inventory", "required": False}],
+        )
+
+        assert PresetManager(project_dir).find_unmet_extension_dependencies(
+            manifest
+        ) == []
+
+    @pytest.mark.parametrize("bad_version", [None, 5, "unknown", "", "latest"])
+    def test_uncomparable_registry_version_is_not_a_mismatch(
+        self, project_dir, temp_dir, valid_pack_data, bad_version
+    ):
+        """A version that cannot be evaluated must not be reported as a mismatch.
+
+        ``version_satisfies()`` returns False for an unparseable version, which
+        is indistinguishable from a genuine mismatch -- so a string like
+        "unknown" would otherwise be reported as failing a constraint nobody
+        can actually evaluate it against.
+        """
+        self._install_extension(project_dir, "speckit-inventory", "0.1.0")
+        registry_path = project_dir / ".specify" / "extensions" / ".registry"
+        data = json.loads(registry_path.read_text(encoding="utf-8"))
+        data["extensions"]["speckit-inventory"]["version"] = bad_version
+        registry_path.write_text(json.dumps(data), encoding="utf-8")
+
+        manifest = self._manifest(
+            temp_dir, valid_pack_data,
+            [{"id": "speckit-inventory", "version": ">=9.0.0"}],
+        )
+
+        assert PresetManager(project_dir).find_unmet_extension_dependencies(
+            manifest
+        ) == []
+
+    def test_unregistered_extension_on_disk_is_satisfied(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """A directory with no registry entry still resolves, so it is not missing.
+
+        ``_get_all_extensions_by_priority`` admits safe unregistered
+        directories at implicit priority 10, so the preset works -- warning
+        that the dependency is absent would be a false alarm.
+        """
+        (project_dir / ".specify" / "extensions" / "speckit-inventory").mkdir(
+            parents=True
+        )
+        manifest = self._manifest(temp_dir, valid_pack_data, ["speckit-inventory"])
+
+        assert PresetManager(project_dir).find_unmet_extension_dependencies(
+            manifest
+        ) == []
+
+    def test_unregistered_extension_cannot_be_version_checked(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """No registry entry means no recorded version, so nothing to compare."""
+        (project_dir / ".specify" / "extensions" / "speckit-inventory").mkdir(
+            parents=True
+        )
+        manifest = self._manifest(
+            temp_dir, valid_pack_data,
+            [{"id": "speckit-inventory", "version": ">=9.0.0"}],
+        )
+
+        assert PresetManager(project_dir).find_unmet_extension_dependencies(
+            manifest
+        ) == []
+
+    def test_corrupted_registry_entry_with_directory_is_not_satisfied(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """A corrupted entry keeps its id registered, so its directory is excluded.
+
+        ``get()`` returns None for a non-dict entry just as it does for an
+        absent one, but ``keys()`` retains the id specifically so resolution
+        does not re-admit the directory as an unregistered extension. The
+        fallback must not revive what resolution excludes.
+        """
+        extensions_dir = project_dir / ".specify" / "extensions"
+        (extensions_dir / "speckit-inventory").mkdir(parents=True)
+        (extensions_dir / ".registry").write_text(
+            json.dumps(
+                {"schema_version": "1.0", "extensions": {"speckit-inventory": "corrupt"}}
+            ),
+            encoding="utf-8",
+        )
+        manifest = self._manifest(temp_dir, valid_pack_data, ["speckit-inventory"])
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        # Reported as corrupt rather than missing: the id is still registered,
+        # so a plain `extension add` would be refused as already installed.
+        assert [dep["reason"] for dep in unmet] == ["corrupt"]
+
+    def test_missing_and_stale_warnings_mention_discovery_only_catalogs(self):
+        """`extension add <id>` is rejected for discovery-only entries, so say so."""
+        manager = MagicMock()
+        manager.find_unmet_extension_dependencies.return_value = [
+            {"id": "speckit-inventory", "reason": "missing",
+             "installed": None, "version": None}
+        ]
+
+        with console.capture() as capture:
+            _warn_unmet_extension_dependencies(manager, MagicMock())
+
+        output = strip_ansi(capture.get())
+        assert "discovery-only catalog" in output
+        assert "--from <archive-url>" in output
+        assert "Install with: specify extension add speckit-inventory" in output
+
+    @pytest.mark.parametrize(
+        "reason, extra",
+        [
+            ("missing", {"installed": None, "version": None}),
+            ("stale", {"installed": "0.1.0", "version": None}),
+            ("disabled", {"installed": "0.1.0", "version": None}),
+            ("version", {"installed": "0.1.0", "version": ">=9.0.0"}),
+        ],
+    )
+    def test_leading_hyphen_id_is_not_emitted_into_a_command(self, reason, extra):
+        """A leading-hyphen id satisfies `^[a-z0-9-]+$` but breaks the command.
+
+        Typer would read it as an option rather than the positional extension
+        argument, so the advertised fix would fail. Every remedy substitutes
+        the placeholder `_command_safe_id` returns. The id here is deliberately
+        not a real flag, so a match cannot be confused with `--force` appearing
+        legitimately in the stale remedy.
+        """
+        manager = MagicMock()
+        manager.find_unmet_extension_dependencies.return_value = [
+            {"id": "--not-a-real-flag", "reason": reason, **extra}
+        ]
+
+        with console.capture() as capture:
+            _warn_unmet_extension_dependencies(manager, MagicMock())
+
+        output = " ".join(strip_ansi(capture.get()).split())
+        # Isolate the remedy: the description line legitimately shows the raw
+        # id, escaped for display; only the copyable command must not carry it.
+        label = next(
+            lbl for lbl in ("Install with:", "Reinstall with:", "Enable with:", "Needs:")
+            if lbl in output
+        )
+        remedy = output.split(label, 1)[1].split("The preset is installed.")[0]
+        assert "--not-a-real-flag" not in remedy
+        assert "<extension-id>" in remedy
+
+    def test_version_only_warning_omits_the_discovery_only_note(self):
+        """The note is about installing by id, which a version mismatch does not do."""
+        manager = MagicMock()
+        manager.find_unmet_extension_dependencies.return_value = [
+            {"id": "speckit-inventory", "reason": "version",
+             "installed": "0.1.0", "version": ">=9.0.0"}
+        ]
+
+        with console.capture() as capture:
+            _warn_unmet_extension_dependencies(manager, MagicMock())
+
+        assert "discovery-only" not in strip_ansi(capture.get())
+
+    def test_unregistered_extension_with_corrupt_registry_is_missing(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """A corrupt registry makes resolution fail closed, so it is not usable."""
+        extensions_dir = project_dir / ".specify" / "extensions"
+        (extensions_dir / "speckit-inventory").mkdir(parents=True)
+        (extensions_dir / ".registry").write_text("{not valid json", encoding="utf-8")
+        manifest = self._manifest(temp_dir, valid_pack_data, ["speckit-inventory"])
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert [dep["reason"] for dep in unmet] == ["missing"]
+
+    def test_corrupted_entry_gets_a_forced_reinstall_remedy(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """A corrupted entry is not simply absent: `add <id>` would be refused.
+
+        ``get()`` returns None for it, but ``is_installed()`` still counts the
+        key, so a plain add reports "already installed". It needs --force.
+        """
+        extensions_dir = project_dir / ".specify" / "extensions"
+        extensions_dir.mkdir(parents=True)
+        (extensions_dir / ".registry").write_text(
+            json.dumps(
+                {"schema_version": "1.0", "extensions": {"speckit-inventory": "bad"}}
+            ),
+            encoding="utf-8",
+        )
+        manifest = self._manifest(temp_dir, valid_pack_data, ["speckit-inventory"])
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert [dep["reason"] for dep in unmet] == ["corrupt"]
+
+    def test_corrupt_warning_suggests_forced_reinstall(self):
+        """The corrupt remedy must use --force, since the id is still registered."""
+        manager = MagicMock()
+        manager.find_unmet_extension_dependencies.return_value = [
+            {"id": "speckit-inventory", "reason": "corrupt",
+             "installed": None, "version": None}
+        ]
+
+        with console.capture() as capture:
+            _warn_unmet_extension_dependencies(manager, MagicMock())
+
+        output = strip_ansi(capture.get())
+        assert "unreadable registry entry" in output
+        assert "Reinstall with: specify extension add speckit-inventory --force" in output
+
+    def test_unreadable_registry_does_not_raise(
+        self, project_dir, temp_dir, valid_pack_data, monkeypatch
+    ):
+        """An OSError from the registry must not crash an already-completed install.
+
+        ``_load()`` lets OSError through, and ``preset_add`` only handles
+        preset-domain errors, so raising here would turn a finished install
+        into a traceback over what is only a warning.
+        """
+        manifest = self._manifest(temp_dir, valid_pack_data, ["speckit-inventory"])
+
+        import specify_cli.presets as presets_mod
+
+        def _boom(*args, **kwargs):
+            raise PermissionError("registry unreadable")
+
+        monkeypatch.setattr(presets_mod, "ExtensionRegistry", _boom)
+
+        assert PresetManager(project_dir).find_unmet_extension_dependencies(
+            manifest
+        ) == []
+
+    def test_version_only_footer_does_not_claim_the_feature_is_inert(self):
+        """A version mismatch still invokes the extension, so wording differs."""
+        manager = MagicMock()
+        manager.find_unmet_extension_dependencies.return_value = [
+            {"id": "speckit-inventory", "reason": "version",
+             "installed": "0.1.0", "version": ">=9.0.0"}
+        ]
+
+        with console.capture() as capture:
+            _warn_unmet_extension_dependencies(manager, MagicMock())
+
+        output = " ".join(strip_ansi(capture.get()).split())
+        assert "may not behave as the preset expects" in output
+        assert "does nothing" not in output
+        assert "safe to use" not in output
+
+    def test_unavailable_footer_states_the_feature_is_inert(self):
+        """An unavailable extension genuinely contributes nothing."""
+        manager = MagicMock()
+        manager.find_unmet_extension_dependencies.return_value = [
+            {"id": "speckit-inventory", "reason": "missing",
+             "installed": None, "version": None}
+        ]
+
+        with console.capture() as capture:
+            _warn_unmet_extension_dependencies(manager, MagicMock())
+
+        output = " ".join(strip_ansi(capture.get()).split())
+        assert "does nothing" in output
+        assert "may not behave as the preset expects" not in output
+
+    def test_exact_duplicate_declarations_warn_once(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """Naming the same dependency twice must not print the warning twice."""
+        manifest = self._manifest(
+            temp_dir, valid_pack_data, ["speckit-inventory", "speckit-inventory"]
+        )
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert [dep["id"] for dep in unmet] == ["speckit-inventory"]
+
+    def test_same_id_with_different_constraints_is_checked_twice(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """Distinct constraints on one id both have to hold, so both are checked."""
+        self._install_extension(project_dir, "speckit-inventory", "1.0.0")
+        manifest = self._manifest(
+            temp_dir, valid_pack_data,
+            [
+                {"id": "speckit-inventory", "version": ">=9.0.0"},
+                {"id": "speckit-inventory", "version": "<0.5"},
+            ],
+        )
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert [dep["version"] for dep in unmet] == [">=9.0.0", "<0.5"]
+
+    def test_stale_registry_entry_is_reported(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """A registry entry whose extension directory is gone counts as unmet.
+
+        PresetResolver guards on ``ext_dir.is_dir()`` in both template lookup
+        and layer collection, so a stale entry contributes nothing -- but the
+        surviving registry entry would otherwise read as satisfied.
+        """
+        self._install_extension(
+            project_dir, "speckit-inventory", "0.1.0", with_files=False
+        )
+        manifest = self._manifest(temp_dir, valid_pack_data, ["speckit-inventory"])
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert len(unmet) == 1
+        assert unmet[0]["reason"] == "stale"
+        assert unmet[0]["installed"] == "0.1.0"
+
+    def test_stale_is_reported_ahead_of_disabled_and_version(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """Restoring the files is the prerequisite, so it is reported first."""
+        self._install_extension(
+            project_dir, "speckit-inventory", "0.1.0",
+            enabled=False, with_files=False,
+        )
+        manifest = self._manifest(
+            temp_dir, valid_pack_data,
+            [{"id": "speckit-inventory", "version": ">=9.0.0"}],
+        )
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert [dep["reason"] for dep in unmet] == ["stale"]
+
+    def test_stale_warning_suggests_a_forced_reinstall(self):
+        """The stale remedy must restore the files, not re-add a registered id."""
+        manager = MagicMock()
+        manager.find_unmet_extension_dependencies.return_value = [
+            {
+                "id": "speckit-inventory",
+                "reason": "stale",
+                "installed": "0.1.0",
+                "version": None,
+            }
+        ]
+
+        with console.capture() as capture:
+            _warn_unmet_extension_dependencies(manager, MagicMock())
+
+        output = strip_ansi(capture.get())
+        assert "its files are missing" in output
+        assert "specify extension add speckit-inventory --force" in output
+
+    def test_disabled_dependency_is_reported(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """A disabled extension contributes nothing, so it counts as unmet.
+
+        Resolution skips disabled extensions, leaving the preset just as inert
+        as if the extension were absent -- but the registry entry exists, so a
+        presence-only check would call it satisfied and stay silent.
+        """
+        self._install_extension(project_dir, "speckit-inventory", "0.1.0", enabled=False)
+        manifest = self._manifest(temp_dir, valid_pack_data, ["speckit-inventory"])
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert len(unmet) == 1
+        assert unmet[0]["reason"] == "disabled"
+        assert unmet[0]["installed"] == "0.1.0"
+
+    def test_disabled_is_reported_ahead_of_version_mismatch(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """Enabling is the prerequisite, so it is reported before the version."""
+        self._install_extension(project_dir, "speckit-inventory", "0.1.0", enabled=False)
+        manifest = self._manifest(
+            temp_dir, valid_pack_data,
+            [{"id": "speckit-inventory", "version": ">=9.0.0"}],
+        )
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert [dep["reason"] for dep in unmet] == ["disabled"]
+
+    def test_multiple_dependencies_report_independently(
+        self, project_dir, temp_dir, valid_pack_data
+    ):
+        """Each declared dependency is evaluated on its own."""
+        self._install_extension(project_dir, "present-ext", "1.0.0")
+        self._install_extension(project_dir, "off-ext", "1.0.0", enabled=False)
+        manifest = self._manifest(
+            temp_dir, valid_pack_data,
+            [
+                "present-ext",
+                "absent-ext",
+                "off-ext",
+                {"id": "opt-ext", "required": False},
+            ],
+        )
+
+        unmet = PresetManager(project_dir).find_unmet_extension_dependencies(manifest)
+
+        assert [(dep["id"], dep["reason"]) for dep in unmet] == [
+            ("absent-ext", "missing"),
+            ("off-ext", "disabled"),
+        ]
 
 
 class TestRegistryPriority:
@@ -2047,6 +2700,25 @@ class TestPresetCatalog:
         catalog = PresetCatalog(project_dir)
         with pytest.raises(PresetValidationError, match="malformed"):
             catalog._validate_catalog_url("https://[::1")
+
+    def test_validate_catalog_url_out_of_range_port_rejected(self, project_dir):
+        """An out-of-range port raises ValueError lazily on ``.port`` access.
+
+        ``urlparse(...).hostname`` alone does not validate the port, so
+        without a ``_ = parsed.port`` probe inside the try/except, a URL like
+        ``https://example.com:99999/catalog.json`` sails through this
+        validator and only fails later, at fetch time, with a raw
+        untranslated error instead of a clean ``PresetValidationError``. The
+        sibling ``preset add --from <url>`` download-URL guard already
+        catches this shape (see
+        ``test_preset_add_from_url_out_of_range_port_exits_cleanly``); this
+        catalog-source-URL validator had drifted from it and from the
+        original guard in ``specify_cli.catalogs``/
+        ``bundler/services/adapters.py``.
+        """
+        catalog = PresetCatalog(project_dir)
+        with pytest.raises(PresetValidationError, match="malformed"):
+            catalog._validate_catalog_url("https://example.com:99999/catalog.json")
 
     def test_env_var_catalog_url(self, project_dir, monkeypatch):
         """Test catalog URL from environment variable."""
@@ -3274,6 +3946,38 @@ class TestPresetCatalogMultiCatalog:
         assert result.exit_code == 1
         assert "[/red]absent" in result.output
 
+    @pytest.mark.parametrize(
+        "args",
+        [
+            [
+                "preset",
+                "catalog",
+                "add",
+                "https://example.com/catalog.json",
+                "--name",
+                "example",
+            ],
+            ["preset", "catalog", "remove", "example"],
+        ],
+    )
+    def test_catalog_mutation_rejects_non_mapping_config_root(
+        self, project_dir, args
+    ):
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        config_path = project_dir / ".specify" / "preset-catalogs.yml"
+        original = "[]\n"
+        config_path.write_text(original, encoding="utf-8")
+
+        with patch.object(Path, "cwd", return_value=project_dir):
+            result = CliRunner().invoke(app, args)
+
+        assert result.exit_code == 1
+        assert "expected a mapping" in result.output
+        assert config_path.read_text(encoding="utf-8") == original
+
     def test_env_var_overrides_catalogs(self, project_dir, monkeypatch):
         """Test that SPECKIT_PRESET_CATALOG_URL env var overrides defaults."""
         monkeypatch.setenv(
@@ -3323,6 +4027,17 @@ class TestPresetCatalogMultiCatalog:
         catalog = PresetCatalog(project_dir)
         result = catalog._load_catalog_config(config_path)
         assert result is None
+
+    @pytest.mark.parametrize("bad", [[], False, 0, ""])
+    def test_load_catalog_config_rejects_falsy_non_mapping_root(
+        self, project_dir, bad
+    ):
+        config_path = project_dir / ".specify" / "preset-catalogs.yml"
+        config_path.write_text(yaml.safe_dump(bad), encoding="utf-8")
+
+        catalog = PresetCatalog(project_dir)
+        with pytest.raises(PresetValidationError, match="expected a mapping"):
+            catalog._load_catalog_config(config_path)
 
     def test_load_catalog_config_invalid_yaml(self, project_dir):
         """Test loading invalid YAML raises error."""
@@ -4260,8 +4975,14 @@ class TestSelfTestPreset:
         assert manifest.id == "invalid-wrap"
         assert manager.registry.is_installed("invalid-wrap")
 
-    def test_extension_command_skipped_when_extension_missing(self, project_dir, temp_dir):
-        """Test that extension command overrides are skipped if the extension isn't installed."""
+    def test_selfcontained_namespaced_command_scaffolds_without_extension(self, project_dir, temp_dir):
+        """A preset shipping a self-contained ``speckit.<ns>.<cmd>`` command
+        scaffolds even when no matching extension is installed.
+
+        The command template ships its own body, so it is self-contained and
+        must render just like a short ``speckit.<cmd>`` command. It is not
+        dropped merely because ``.specify/extensions/fakeext/`` is absent.
+        """
         claude_dir = project_dir / ".claude" / "skills"
         claude_dir.mkdir(parents=True)
 
@@ -4297,11 +5018,13 @@ class TestSelfTestPreset:
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
-        # Extension not installed — command should NOT be registered
-        cmd_file = claude_dir / "speckit.fakeext.cmd.md"
-        assert not cmd_file.exists(), "Command registered for missing extension"
+        # Extension not installed, but the preset ships its own command body —
+        # it must scaffold (as a native-skill SKILL.md for claude) and be
+        # tracked in the preset's registered_commands.
+        skill_file = claude_dir / "speckit-fakeext-cmd" / "SKILL.md"
+        assert skill_file.exists(), "Self-contained namespaced command was dropped"
         metadata = manager.registry.get("ext-override")
-        assert metadata["registered_commands"] == {}
+        assert metadata["registered_commands"] != {}
 
     def test_extension_command_registered_when_extension_present(self, project_dir, temp_dir):
         """Test that extension command overrides ARE registered when the extension is installed."""
@@ -6545,17 +7268,16 @@ class TestPresetSkills:
             "sanity: the new skills-mode artifact should still be written"
         )
 
-    def test_rescaffold_skips_extension_commands_when_extension_not_installed(
+    def test_rescaffold_scaffolds_selfcontained_namespaced_commands(
         self, project_dir, temp_dir
     ):
-        """Rescaffold must not materialize extension-scoped commands
-        (``speckit.<ext>.<cmd>``) when the extension isn't installed.
+        """A self-contained ``speckit.<ns>.<cmd>`` preset command scaffolds and
+        survives rescaffold, even when no matching extension is installed.
 
-        ``_register_commands`` refuses them, but the rescaffold seeded its
-        final reconciliation pass with every command template name
-        unfiltered, so ``_reconcile_composed_commands`` wrote the command
-        file anyway — an artifact no registry entry tracks (review
-        3623357358).
+        The preset ships the command body itself, so it is materialized just
+        like a short ``speckit.<cmd>`` command — both at install and through a
+        later reconciliation/rescaffold pass. It is not dropped by the
+        ``speckit.<ns>.<cmd>`` name shape (#4076).
         """
         self._write_init_options(project_dir, ai="copilot", ai_skills=False)
         commands_dir = project_dir / ".github" / "agents"
@@ -6569,24 +7291,24 @@ class TestPresetSkills:
         manager.install_from_directory(preset_dir, "0.1.5")
 
         ext_cmd = commands_dir / "speckit.git.feature.agent.md"
-        assert not ext_cmd.exists(), (
-            "sanity: install must not write an extension command when the "
-            "extension isn't installed"
+        assert ext_cmd.exists(), (
+            "sanity: install must scaffold a self-contained namespaced command "
+            "even when its like-named extension isn't installed"
         )
 
         manager.register_enabled_presets_for_agent("copilot")
 
-        assert not ext_cmd.exists(), (
-            "rescaffold must not materialize an extension-scoped command "
-            "whose extension isn't installed"
+        assert ext_cmd.exists(), (
+            "rescaffold must keep the self-contained namespaced command"
         )
         metadata = manager.registry.get("ext-scoped-preset")
-        assert not (metadata.get("registered_commands") or {}).get("copilot")
+        assert (metadata.get("registered_commands") or {}).get("copilot")
 
-    def test_rescaffold_skips_extension_skills_when_extension_not_installed(
+    def test_rescaffold_scaffolds_selfcontained_namespaced_skills(
         self, project_dir, temp_dir
     ):
-        """Historical tracking must not recreate a missing extension's skill."""
+        """A self-contained ``speckit.<ns>.<cmd>`` preset command renders its
+        skill even when no matching extension is installed."""
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
         skills_dir = project_dir / ".github" / "skills"
         skills_dir.mkdir(parents=True)
@@ -6603,27 +7325,79 @@ class TestPresetSkills:
 
         skill_name = "speckit-git-feature"
         skill_file = skills_dir / skill_name / "SKILL.md"
-        assert not skill_file.exists()
-
-        manager.registry.update(
-            "ext-scoped-skill-preset",
-            {"registered_skills": {"copilot": [skill_name]}},
-        )
-        overrides_dir = (
-            project_dir / ".specify" / "templates" / "overrides"
-        )
-        overrides_dir.mkdir(parents=True)
-        (overrides_dir / "speckit.git.feature.md").write_text(
-            "---\ndescription: Project override\n---\n\nOverride body\n",
-            encoding="utf-8",
+        assert skill_file.exists(), (
+            "install must render a self-contained namespaced command's skill "
+            "even when its like-named extension isn't installed"
         )
 
         manager.register_enabled_presets_for_agent("copilot")
 
-        assert not skill_file.exists(), (
-            "rescaffold must not materialize an extension-scoped skill "
-            "whose extension isn't installed"
+        assert skill_file.exists(), (
+            "rescaffold must keep the self-contained namespaced command's skill"
         )
+
+    def test_uncomposable_wrap_command_skips_skill_in_skills_mode(
+        self, project_dir, temp_dir
+    ):
+        """A wrap command with no base layer must not materialize a broken
+        skill in skills mode.
+
+        When ``_register_commands`` skips an uncomposable wrap command (no
+        base to compose onto — e.g. the command it wraps comes from an
+        uninstalled extension), ``_register_skills`` must skip it too. Before
+        this fix, skills mode fell back to the raw preset body and wrote a
+        SKILL.md containing a literal ``{CORE_TEMPLATE}`` placeholder.
+        """
+        self._write_init_options(project_dir, ai="copilot", ai_skills=True)
+        skills_dir = project_dir / ".github" / "skills"
+        skills_dir.mkdir(parents=True)
+
+        preset_dir = temp_dir / "uncomposable-wrap"
+        preset_dir.mkdir()
+        (preset_dir / "commands").mkdir()
+        # speckit.git.feature has no core command template and no installed
+        # extension, so there is no base layer to wrap.
+        (preset_dir / "commands" / "speckit.git.feature.md").write_text(
+            "---\ndescription: Wrap\nstrategy: wrap\n---\n\n"
+            "wrap start\n{CORE_TEMPLATE}\nwrap end\n"
+        )
+        manifest_data = {
+            "schema_version": "1.0",
+            "preset": {
+                "id": "uncomposable-wrap",
+                "name": "uncomposable-wrap",
+                "version": "1.0.0",
+                "description": "Test",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "templates": [
+                    {
+                        "type": "command",
+                        "name": "speckit.git.feature",
+                        "file": "commands/speckit.git.feature.md",
+                        "strategy": "wrap",
+                    }
+                ]
+            },
+        }
+        with open(preset_dir / "preset.yml", "w") as f:
+            yaml.dump(manifest_data, f)
+
+        manager = PresetManager(project_dir)
+        with pytest.warns(UserWarning, match="no base command layer"):
+            manager.install_from_directory(preset_dir, "0.1.5")
+
+        skill_file = skills_dir / "speckit-git-feature" / "SKILL.md"
+        assert not skill_file.exists(), (
+            "an uncomposable wrap command must not be rendered as a skill"
+        )
+        # Belt-and-suspenders: no artifact anywhere may leak the raw placeholder.
+        leaked = [
+            p for p in skills_dir.rglob("*")
+            if p.is_file() and "{CORE_TEMPLATE}" in p.read_text(encoding="utf-8")
+        ]
+        assert not leaked, f"literal {{CORE_TEMPLATE}} leaked into {leaked}"
 
     def test_same_mode_partial_command_rescaffold_keeps_skipped_tracking(
         self, project_dir, temp_dir
@@ -10051,6 +10825,43 @@ class TestPresetSkills:
         assert "claude" in registered_skills and "speckit-specify" in registered_skills["claude"], (
             "claude's real ownership must be preserved in the migrated tracking"
         )
+
+    def test_short_and_namespaced_commands_scaffold_consistently(
+        self, project_dir, temp_dir
+    ):
+        """A preset's ``speckit.<cmd>`` and ``speckit.<ns>.<cmd>`` commands must
+        scaffold identically in command mode, with no installed extension.
+
+        Regression: the 3-part (``speckit.<ns>.<cmd>``) form was silently
+        dropped by a name-shape guard whenever ``.specify/extensions/<ns>/``
+        was absent, even though the preset ships the command body itself. The
+        2-part form always scaffolded. Both are self-contained and must behave
+        the same (#4076).
+        """
+        self._write_init_options(project_dir, ai="gemini", ai_skills=False)
+        gemini_commands_dir = project_dir / ".gemini" / "commands"
+        gemini_commands_dir.mkdir(parents=True)
+
+        short_preset = self._create_command_preset(
+            temp_dir, "short-cmd", "speckit.newcmd", "Short", "short body",
+        )
+        ns_preset = self._create_command_preset(
+            temp_dir, "ns-cmd", "speckit.fakeext.newcmd", "Namespaced", "ns body",
+        )
+
+        manager = PresetManager(project_dir)
+        manager.install_from_directory(short_preset, "0.1.5")
+        manager.install_from_directory(ns_preset, "0.1.5")
+
+        short_file = gemini_commands_dir / "speckit.newcmd.toml"
+        ns_file = gemini_commands_dir / "speckit.fakeext.newcmd.toml"
+        assert short_file.exists(), "2-part command should scaffold"
+        assert ns_file.exists(), (
+            "3-part namespaced command must scaffold too, even without the "
+            "matching extension installed"
+        )
+        assert manager.registry.get("short-cmd")["registered_commands"] != {}
+        assert manager.registry.get("ns-cmd")["registered_commands"] != {}
 
 
 class TestPresetSetPriority:
@@ -13717,6 +14528,73 @@ class TestInstalledPresetRichMarkup:
         assert "Composition chain" in output, output
         assert "[base]" in output, output
         assert "[append]" in output, output
+
+
+class TestPresetListOrdering:
+    """``preset list`` must print presets in actual resolution/precedence order.
+
+    Regression coverage for #4086: the printed order was registry/insertion
+    order, so a preset with a *higher* priority number (lower precedence) could
+    appear before one with a lower number, misleading users about which preset
+    wins. Output must be sorted by (priority, id) to match
+    ``PresetRegistry.list_by_priority()``.
+    """
+
+    def _install(self, temp_dir, project_dir, pack_id, priority):
+        from specify_cli.presets import PresetManager
+
+        src = temp_dir / f"src-{pack_id}"
+        (src / "templates").mkdir(parents=True)
+        (src / "templates" / "spec-template.md").write_text("# tmpl\n")
+        (src / "preset.yml").write_text(yaml.dump({
+            "schema_version": "1.0",
+            "preset": {
+                "id": pack_id,
+                "name": pack_id,
+                "version": "1.0.0",
+                "description": "plain description",
+            },
+            "requires": {"speckit_version": ">=0.0.1"},
+            "provides": {"templates": [{
+                "type": "template",
+                "name": "spec-template",
+                "file": "templates/spec-template.md",
+            }]},
+        }))
+        PresetManager(project_dir).install_from_directory(src, "9.9.9", priority)
+
+    def _invoke(self, project_dir, args):
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        with patch.object(Path, "cwd", return_value=project_dir):
+            return CliRunner().invoke(app, args)
+
+    def test_list_sorted_by_priority(self, temp_dir, project_dir):
+        """Lower priority number is listed first regardless of install order."""
+        # Install in an order that does NOT match precedence.
+        self._install(temp_dir, project_dir, "copilot-sub-agents", priority=100)
+        self._install(temp_dir, project_dir, "lean", priority=10)
+
+        result = self._invoke(project_dir, ["preset", "list"])
+        assert result.exit_code == 0, result.output
+        output = strip_ansi(result.output)
+        # `lean` (priority 10) must appear before `copilot-sub-agents` (100).
+        assert output.index("(lean)") < output.index("(copilot-sub-agents)"), output
+        assert "resolution order" in output, output
+        assert "Ties are broken by preset id" in output, output
+
+    def test_list_ties_broken_by_id(self, temp_dir, project_dir):
+        """Equal priority ties are broken alphabetically by preset id."""
+        self._install(temp_dir, project_dir, "zebra", priority=10)
+        self._install(temp_dir, project_dir, "alpha", priority=10)
+
+        result = self._invoke(project_dir, ["preset", "list"])
+        assert result.exit_code == 0, result.output
+        output = strip_ansi(result.output)
+        assert output.index("(alpha)") < output.index("(zebra)"), output
+
 
 class TestConstitutionSyncPreset:
     """The bundled opt-in ``constitution-sync`` preset re-adds materialization.

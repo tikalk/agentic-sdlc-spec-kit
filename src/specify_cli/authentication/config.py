@@ -11,7 +11,6 @@ import json
 import os
 import stat
 from dataclasses import dataclass
-from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -48,10 +47,21 @@ def _is_valid_host_pattern(pattern: str) -> bool:
     * ``*.example.com``         — leading ``*.`` wildcard; matches subdomains
       such as ``myorg.example.com`` but not ``example.com`` itself
     """
+    if any(char in pattern for char in "?[]"):
+        return False
     if "*" not in pattern:
         return True  # exact hostname — already validated as non-empty
     # Only *.suffix is allowed; no other wildcard positions
-    return pattern.startswith("*.") and "*" not in pattern[2:]
+    return pattern.startswith("*.") and len(pattern) > 2 and "*" not in pattern[2:]
+
+
+def _host_matches_pattern(hostname: str, pattern: str) -> bool:
+    """Match a hostname against an exact host or leading ``*.`` wildcard."""
+    hostname = hostname.lower()
+    pattern = pattern.lower()
+    if pattern.startswith("*.") and _is_valid_host_pattern(pattern):
+        return hostname.endswith(pattern[1:])
+    return hostname == pattern
 
 
 def _norm(value: Any) -> Any:
@@ -102,7 +112,10 @@ def load_auth_config(
         except OSError:
             pass  # stat failed — skip permission check
 
-    raw = json.loads(config_path.read_text(encoding="utf-8"))
+    try:
+        raw = json.loads(config_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{config_path} contains invalid JSON: {exc}") from exc
 
     if not isinstance(raw, dict):
         raise ValueError(f"auth.json must be a JSON object, got {type(raw).__name__}")
@@ -211,12 +224,14 @@ def find_entries_for_url(
 ) -> list[AuthConfigEntry]:
     """Return entries whose ``hosts`` match the hostname of *url*."""
     # A malformed authority (e.g. an unterminated IPv6 bracket "https://[::1")
-    # makes urlparse/hostname raise ValueError. Treat that the same as a
+    # makes urlparse, hostname, or port raise ValueError. Treat that the same as a
     # host-less URL: no entry can match, so return no matches rather than
     # leaking a raw ValueError out of the shared HTTP client (build_request /
     # open_url call this before any URL validation).
     try:
-        hostname = (urlparse(url).hostname or "").lower()
+        parsed = urlparse(url)
+        hostname = (parsed.hostname or "").lower()
+        _ = parsed.port
     except ValueError:
         return []
     if not hostname:
@@ -224,8 +239,5 @@ def find_entries_for_url(
     return [
         e
         for e in entries
-        if any(
-            pattern == hostname or fnmatch(hostname, pattern)
-            for pattern in e.hosts
-        )
+        if any(_host_matches_pattern(hostname, pattern) for pattern in e.hosts)
     ]

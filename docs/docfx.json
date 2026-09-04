@@ -64,6 +64,8 @@
     "globalMetadata": {
       "_appTitle": "Agentic SDLC Spec Kit Documentation",
       "_appName": "Agentic SDLC Spec Kit",
+      "_appLogoPath": "images/spec-kit-logo.webp",
+      "_appFaviconPath": "images/spec-kit-logo.webp",
       "_appFooter": "Agentic SDLC Spec Kit - A specification-driven development toolkit",
       "_enableSearch": true,
       "_disableContribution": false,

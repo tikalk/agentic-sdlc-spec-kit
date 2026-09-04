@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
+import sys
 from pathlib import Path
+
+import yaml
+
+from tests.conftest import requires_bash
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -12,6 +19,82 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 # inline shorthand (`      - uses: x@sha`) used in catalog-assign.yml.
 USES_RE = re.compile(r"^\s*(?:-\s*)?uses:\s*(?P<ref>\S+)", re.MULTILINE)
 PINNED_SHA_RE = re.compile(r"@[0-9a-f]{40}$", re.IGNORECASE)
+PUBLISH_WORKFLOW = WORKFLOWS_DIR / "publish-pypi.yml"
+PUBLISH_VALIDATION_STEPS = (
+    "Verify tag format",
+    "Verify tag matches package version",
+)
+COMMUNITY_SUBMISSION_WORKFLOWS = (
+    (
+        "bundle",
+        "bundle-submission",
+        "bundles/catalog.community.json",
+        "docs/community/bundles.md",
+        "Modify only `bundles/catalog.community.json`",
+    ),
+    (
+        "extension",
+        "extension-submission",
+        "extensions/catalog.community.json",
+        "docs/community/extensions.md",
+        "Do not modify any other files",
+    ),
+    (
+        "preset",
+        "preset-submission",
+        "presets/catalog.community.json",
+        "docs/community/presets.md",
+        "Do not modify any other files",
+    ),
+)
+
+
+def _publish_workflow_steps() -> dict[str, dict[str, object]]:
+    workflow = yaml.safe_load(PUBLISH_WORKFLOW.read_text(encoding="utf-8"))
+    return {step["name"]: step for step in workflow["jobs"]["build"]["steps"]}
+
+
+def _run_publish_validation_step(
+    step_name: str, tag: str, working_directory: Path
+) -> subprocess.CompletedProcess[str]:
+    step = _publish_workflow_steps()[step_name]
+    env = os.environ.copy()
+    env["TAG"] = tag
+    env["PATH"] = f"{Path(sys.executable).parent}{os.pathsep}{env['PATH']}"
+    return subprocess.run(
+        ["bash", "-euo", "pipefail", "-c", step["run"]],
+        cwd=working_directory,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _write_project_version(working_directory: Path, version: str) -> None:
+    (working_directory / "pyproject.toml").write_text(
+        f'[project]\nversion = "{version}"\n', encoding="utf-8"
+    )
+
+
+def _create_pull_request_allowed_files(source_text: str) -> list[str]:
+    create_pr_match = re.search(
+        r"(?m)^  create-pull-request:\n(?P<body>(?:^    [^\n]*\n?)+)",
+        source_text,
+    )
+    assert create_pr_match is not None
+
+    allowed_files_match = re.search(
+        r"(?m)^    allowed-files:\n(?P<files>(?:^      - [^\n]+\n?)+)",
+        create_pr_match.group("body"),
+    )
+    assert allowed_files_match is not None
+
+    return [
+        line.strip().removeprefix("- ")
+        for line in allowed_files_match.group("files").splitlines()
+        if line.strip()
+    ]
 
 
 def test_github_actions_are_pinned_to_full_commit_shas():
@@ -35,28 +118,106 @@ def test_github_actions_are_pinned_to_full_commit_shas():
     assert unpinned_refs == []
 
 
+def test_publish_tag_validation_uses_environment_variable():
+    steps = _publish_workflow_steps()
+
+    for step_name in PUBLISH_VALIDATION_STEPS:
+        step = steps[step_name]
+        assert step["env"]["TAG"] == "${{ inputs.tag }}"
+        assert "${{ inputs.tag }}" not in step["run"]
+
+
+@requires_bash
+def test_publish_tag_validation_accepts_valid_tag(tmp_path):
+    _write_project_version(tmp_path, "1.2.3")
+
+    for step_name in PUBLISH_VALIDATION_STEPS:
+        result = _run_publish_validation_step(step_name, "v1.2.3", tmp_path)
+        assert result.returncode == 0, result.stderr
+
+
+@requires_bash
+def test_publish_tag_validation_rejects_invalid_tag(tmp_path):
+    for invalid_tag in ("1.2.3", "v1.2", "v1.2.3-rc1"):
+        result = _run_publish_validation_step(
+            "Verify tag format", invalid_tag, tmp_path
+        )
+        assert result.returncode != 0
+        assert "is not a valid release tag" in result.stdout
+
+    injected_file = tmp_path / "interpolated"
+    injected_tag = f'v1.2.3"; touch "{injected_file}"; #'
+    result = _run_publish_validation_step("Verify tag format", injected_tag, tmp_path)
+    assert result.returncode != 0
+    assert not injected_file.exists()
+
+
+@requires_bash
+def test_publish_tag_validation_rejects_version_mismatch(tmp_path):
+    _write_project_version(tmp_path, "1.2.3")
+
+    result = _run_publish_validation_step(
+        "Verify tag matches package version", "v1.2.4", tmp_path
+    )
+
+    assert result.returncode != 0
+    assert "does not match pyproject.toml version" in result.stdout
+
+
 def test_pinned_action_ref_accepts_uppercase_hex_sha():
     assert PINNED_SHA_RE.search(
         "actions/example@0123456789ABCDEF0123456789ABCDEF01234567"
     )
 
 
-def test_community_bundle_submission_automation_is_wired():
-    source = WORKFLOWS_DIR / "add-community-bundle.md"
-    compiled = WORKFLOWS_DIR / "add-community-bundle.lock.yml"
+def test_community_submission_automation_is_wired_to_allowed_files():
     assignment = WORKFLOWS_DIR / "catalog-assign.yml"
-
-    assert source.is_file()
-    assert compiled.is_file()
-    source_text = source.read_text(encoding="utf-8")
     assignment_text = assignment.read_text(encoding="utf-8")
 
-    assert "names: [bundle-submission]" in source_text
-    assert "bundles/catalog.community.json" in source_text
-    assert "docs/community/bundles.md" in source_text
-    assert "verified: false" in source_text
-    assert "allowed-files:" in source_text
-    assert "bundle-submission" in assignment_text
+    for workflow, label, catalog_file, docs_file, instruction in (
+        COMMUNITY_SUBMISSION_WORKFLOWS
+    ):
+        source = WORKFLOWS_DIR / f"add-community-{workflow}.md"
+        compiled = WORKFLOWS_DIR / f"add-community-{workflow}.lock.yml"
+
+        assert source.is_file()
+        assert compiled.is_file()
+        source_text = source.read_text(encoding="utf-8")
+        compiled_text = compiled.read_text(encoding="utf-8")
+
+        assert f"names: [{label}]" in source_text
+        assert catalog_file in source_text
+        assert docs_file in source_text
+        assert instruction in source_text
+        assert _create_pull_request_allowed_files(source_text) == [
+            catalog_file,
+            docs_file,
+        ]
+        assert f'"allowed_files":["{catalog_file}","{docs_file}"]' in compiled_text
+        assert label in assignment_text
+
+
+def test_community_submission_allowed_files_do_not_include_other_catalogs_or_docs():
+    allowed_by_workflow = {
+        workflow: set(
+            _create_pull_request_allowed_files(
+                (WORKFLOWS_DIR / f"add-community-{workflow}.md").read_text(
+                    encoding="utf-8"
+                )
+            )
+        )
+        for workflow, *_ in COMMUNITY_SUBMISSION_WORKFLOWS
+    }
+
+    workflow_allowed_files = list(allowed_by_workflow.items())
+
+    for index, (workflow, allowed_files) in enumerate(workflow_allowed_files):
+        for other_workflow, other_allowed_files in workflow_allowed_files[index + 1 :]:
+            overlapping_files = allowed_files & other_allowed_files
+            assert overlapping_files == set(), (
+                f"{workflow} and {other_workflow} share allowed files: "
+                f"{sorted(overlapping_files)}"
+            )
 
 
 def test_bug_test_workflow_provisions_python_dependencies():
@@ -69,7 +230,7 @@ def test_bug_test_workflow_provisions_python_dependencies():
     compiled_text = compiled.read_text(encoding="utf-8")
 
     setup_uv = (
-        "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0"
+        "astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1"
     )
     setup_python = (
         "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0"
