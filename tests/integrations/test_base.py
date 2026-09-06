@@ -311,6 +311,18 @@ class TestResolveCommandRefs:
         prefix = self._get_prefix()
         assert result == f"Run /{prefix}-git-commit to commit."
 
+    def test_hyphenated_command_dot(self):
+        text = "Run __SPECKIT_COMMAND_AGENT-CONTEXT_UPDATE__ to refresh."
+        result = IntegrationBase.resolve_command_refs(text, ".")
+        prefix = self._get_prefix()
+        assert result == f"Run /{prefix}.agent-context.update to refresh."
+
+    def test_hyphenated_command_hyphen(self):
+        text = "Run __SPECKIT_COMMAND_AGENT-CONTEXT_UPDATE__ to refresh."
+        result = IntegrationBase.resolve_command_refs(text, "-")
+        prefix = self._get_prefix()
+        assert result == f"Run /{prefix}-agent-context-update to refresh."
+
     def test_no_placeholders_unchanged(self):
         text = "No placeholders here."
         assert IntegrationBase.resolve_command_refs(text, ".") == text
@@ -359,6 +371,10 @@ class TestResolveCommandRefs:
 
     def test_lowercase_placeholder_not_matched(self):
         text = "Run __SPECKIT_COMMAND_plan__ to plan."
+        assert IntegrationBase.resolve_command_refs(text, ".") == text
+
+    def test_leading_hyphen_not_matched(self):
+        text = "Run __SPECKIT_COMMAND_-PLAN__ to plan."
         assert IntegrationBase.resolve_command_refs(text, ".") == text
 
     def test_placeholder_adjacent_to_text(self):
