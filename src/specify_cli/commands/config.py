@@ -9,6 +9,7 @@ import typer
 from rich.table import Table
 
 from .._console import console
+from .._core_fork import install_mcp_config
 from .._init_options import load_init_options, save_init_options
 from ..extensions import ExtensionManager
 from ..extensions._commands import extension_app
@@ -45,7 +46,6 @@ _INIT_OPTION_KEYS = {
     "speckit-version": "speckit_version",
     "team-ai-directives": "team_ai_directives",
 }
-_SCRIPT_TYPES = {"sh", "ps", "py"}
 _FEATURE_NUMBERING = {"sequential", "timestamp"}
 
 
@@ -138,10 +138,9 @@ def config_set(
     options = load_init_options(project_root)
 
     if normalized_key == "script":
-        normalized_value = value.lower()
-        if normalized_value not in _SCRIPT_TYPES:
-            raise typer.BadParameter("script must be one of: sh, ps, py")
-        options["script"] = normalized_value
+        raise typer.BadParameter(
+            "script is managed by specify integration upgrade <key> --script <type>"
+        )
     elif normalized_key == "feature-numbering":
         normalized_value = value.lower()
         if normalized_value not in _FEATURE_NUMBERING:
@@ -149,10 +148,17 @@ def config_set(
                 "feature-numbering must be one of: sequential, timestamp"
             )
         options["feature_numbering"] = normalized_value
-    elif normalized_key in {"ai", "integration", "ai-skills"}:
+    elif normalized_key in {"ai", "integration"}:
         raise typer.BadParameter(
             f"{normalized_key} is managed by specify integration use {value}"
         )
+    elif normalized_key == "ai-skills":
+        raise typer.BadParameter(
+            "ai-skills is managed by specify integration upgrade <key> --integration-options. "
+            "Options depend on the integration; see specify integration upgrade --help."
+        )
+    elif normalized_key in {"here", "speckit-version"}:
+        raise typer.BadParameter(f"{normalized_key} is read-only")
     elif normalized_key == "team-ai-directives":
         if sync_team_ai_directives is None or _install_skills_from_path is None:
             raise typer.BadParameter("team-ai-directives is only available in this fork")
@@ -161,14 +167,28 @@ def config_set(
             raise typer.BadParameter(
                 "team-ai-directives requires an active integration; run specify integration use <key> first"
             )
-        _, directives_path = sync_team_ai_directives(value, project_root, force=False)
-        _install_skills_from_path(
-            team_directives_path=directives_path,
-            project_path=project_root,
-            selected_ai=selected_ai,
-            force=False,
-        )
-        options["team_ai_directives"] = str(directives_path)
+        phase = "synchronization"
+        try:
+            _, directives_path = sync_team_ai_directives(value, project_root, force=False)
+            if (directives_path / ".mcp.json").exists():
+                phase = "MCP configuration"
+                install_mcp_config(directives_path, project_root)
+            phase = "skill installation"
+            _install_skills_from_path(
+                team_directives_path=directives_path,
+                project_path=project_root,
+                selected_ai=selected_ai,
+                force=False,
+            )
+        except Exception as exc:
+            console.print(f"Team AI directives {phase} failed: {exc}", markup=False)
+            console.print(
+                "Partial extension or skills files may remain. Inspect and repair incomplete "
+                "skill files first: existing skills are skipped on retry. Fix the cause and retry the same "
+                "config set team-ai-directives command. The saved source was not changed."
+            )
+            raise typer.Exit(1) from None
+        options["team_ai_directives"] = str(directives_path.resolve())
     else:
         raise typer.BadParameter(f"Unknown configuration key: {key}")
 
@@ -185,11 +205,19 @@ def config_unset(key: str = typer.Argument(help="Configuration key")) -> None:
 
     project_root = _require_specify_project()
     options = load_init_options(project_root)
-    ExtensionManager(project_root).remove("team-ai-directives")
-    options.pop("team_ai_directives", None)
-    save_init_options(project_root, options)
-    console.print("Removed team-ai-directives configuration.")
-    console.print("Copied team skills remain for manual review in the active agent skills directory.")
+    removed = ExtensionManager(project_root).remove("team-ai-directives")
+    had_source = "team_ai_directives" in options
+    if had_source:
+        options.pop("team_ai_directives")
+        save_init_options(project_root, options)
+    if removed:
+        console.print("Removed team-ai-directives extension and configuration.")
+    elif had_source:
+        console.print("Cleared team-ai-directives saved source; the extension was not installed.")
+    else:
+        console.print("Nothing to unset: no team-ai-directives extension or saved source.")
+    if removed or had_source:
+        console.print("Copied team skills remain for manual review in the active agent skills directory.")
 
 
 def register(app: typer.Typer) -> None:

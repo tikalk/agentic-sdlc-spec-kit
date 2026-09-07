@@ -2,6 +2,20 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [1.0.4+adlc2] - 2026-09-07
+
+### Added
+
+- **Project configuration CLI**: Added `specify config` for inspecting persisted
+  initialization settings, safely changing feature numbering,
+  delegating extension lifecycle commands, and managing the team-directives
+  source after initialization. Added the corresponding reference and local
+  development documentation.
+  Script and skills-layout changes use `specify integration upgrade`.
+  Read-only settings receive specific guidance, team-directives failures report
+  partial installation and retry guidance, and unsetting an absent extension
+  distinguishes saved-source cleanup from an already-unset configuration.
+
 # [1.0.4+adlc1] - 2026-09-03
 
 ### Changed

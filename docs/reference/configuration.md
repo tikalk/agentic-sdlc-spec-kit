@@ -18,7 +18,6 @@ extensions. `--json` prints both as machine-readable JSON.
 ## Change Supported Initialization Settings
 
 ```bash
-specify config set script py
 specify config set feature-numbering timestamp
 ```
 
@@ -26,12 +25,34 @@ Supported values are:
 
 | Setting | Values |
 | --- | --- |
-| `script` | `sh`, `ps`, `py` |
 | `feature-numbering` | `sequential`, `timestamp` |
 
-The active coding-agent integration and skills layout are not configurable
-through this command because changing them requires regenerating agent files.
-Use `specify integration use <integration>` instead.
+Script type, the active integration, and skills layout are owned by
+`specify integration`. Changing a script type requires regenerating the
+installed agent files:
+
+```bash
+specify integration upgrade <integration> --script py
+```
+
+Use the active integration key to update both its commands and the script
+setting shown by `config get script`. Supported script types are `sh`, `ps`,
+and `py`. Upgrade checks manifest hashes and refuses to overwrite modified
+files without `--force`; review those changes before choosing to overwrite them.
+
+The selected type applies where a template supplies that variant. Some bundled
+preset overrides, including the `agentic-sdlc` plan command, supply only `sh`
+and `ps` and fall back to a supported variant when `py` is selected. Inspect
+generated commands before assuming every helper uses Python.
+
+Use `specify integration use <integration>` to select an installed integration.
+For layout changes, use `specify integration upgrade <integration>
+--integration-options="..."` with that integration's supported options. For
+example, Copilot supports `--integration-options="--commands"`. Layout options
+vary by integration; `ai-skills` is not a universal toggle.
+
+`here` and `speckit-version` are read-only initialization metadata. Known
+read-only settings and unknown keys produce distinct errors when set.
 
 ## Change or Remove the Team Directives Source
 
@@ -43,11 +64,23 @@ specify config unset team-ai-directives
 ```
 
 Setting a source validates it, ensures the bundled governance extension is
-installed without replacing an existing one, and installs any source-declared
-default skills that are not already present.
+installed without replacing an existing one, merges its `.mcp.json` when
+present, and installs any source-declared default skills that are not already
+present.
 Unsetting it removes the governance extension and the saved source setting.
 Copied team skills are intentionally left in the active agent's skills
 directory for manual review.
+
+Installation is not transactional. If synchronization or skill installation
+fails, the command exits with an error and leaves the previous saved source
+unchanged. The extension and some skills may already have been installed.
+Inspect and repair incomplete skill files, correct the reported cause, and
+retry the same `config set team-ai-directives` command. Existing skill files
+are skipped, even if a failed copy left them incomplete; retry alone does not
+repair those files. No automatic rollback is attempted.
+
+If the extension is absent, `unset` still clears a saved source and reports
+that cleanup. If neither exists, it reports that the setting is already unset.
 
 ## Manage Extensions
 

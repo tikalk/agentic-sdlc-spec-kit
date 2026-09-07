@@ -74,7 +74,7 @@ Run the read and mutation commands and verify each result:
 "$SPECIFY" config list --json
 "$SPECIFY" config get script
 
-"$SPECIFY" config set script py
+"$SPECIFY" integration upgrade copilot --script py
 "$SPECIFY" config get script
 
 "$SPECIFY" config set feature-numbering timestamp
@@ -83,15 +83,22 @@ Run the read and mutation commands and verify each result:
 
 The final two `get` commands must print `py` and `timestamp`. The corresponding
 values in `"$TEST_ROOT/project/.specify/init-options.json"` must match.
+Inspect `.github/skills/` and compare helper invocations with the selected
+templates. Core templates supporting `py` use `scripts/python/`; bundled
+preset overrides without a `py` variant can still invoke shell helpers.
 
 Verify that integration ownership is enforced:
 
 ```bash
 "$SPECIFY" config set integration claude
+"$SPECIFY" config set script sh
+"$SPECIFY" config set ai-skills true
+"$SPECIFY" config set here true
 ```
 
-This command must fail and direct you to `specify integration use` without
-changing the saved integration.
+Each command must fail without changing saved settings. Integration selection
+must point to `specify integration use`, script and layout changes to
+`specify integration upgrade`, and `here` must be identified as read-only.
 
 Verify extension delegation using the bundled `git` extension:
 
@@ -240,7 +247,7 @@ Or copy only the modified CLI portion if you want a lighter sandbox.
 ## 12. Rapid Edit Loop Summary
 
 | Action | Command |
-|--------|---------|
+| --- | --- |
 | Run CLI directly | `python -m src.specify_cli --help` |
 | Editable install | `uv pip install -e .` then `specify ...` |
 | Local uvx run (repo root) | `uvx --from . specify ...` |
@@ -259,7 +266,7 @@ rm -rf .venv dist build *.egg-info
 ## 14. Common Issues
 
 | Symptom | Fix |
-|---------|-----|
+| --- | --- |
 | `ModuleNotFoundError: typer` | Run `uv pip install -e .` |
 | Scripts not executable (Linux) | Re-run init or `chmod +x scripts/*.sh` |
 | Git commands unavailable | Install the git extension with `specify extension add git` |
