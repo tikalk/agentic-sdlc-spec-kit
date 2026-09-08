@@ -48,6 +48,8 @@ _INIT_OPTION_KEYS = {
     "team-ai-directives": "team_ai_directives",
 }
 _FEATURE_NUMBERING = {"sequential", "timestamp"}
+_TEAM_DIRECTIVES_MCP_KEY = "team_ai_directives_mcp"
+_MCP_ENTRY_SECTIONS = ("mcpServers", "tools")
 
 
 def _require_specify_project():
@@ -64,6 +66,60 @@ def _display_value(value: Any) -> str:
     if isinstance(value, (dict, list)):
         return json.dumps(value, ensure_ascii=False)
     return str(value)
+
+
+def _read_mcp_config(project_root) -> dict[str, Any]:
+    mcp_path = project_root / ".mcp.json"
+    if not mcp_path.exists():
+        return {}
+    content = json.loads(mcp_path.read_text())
+    if not isinstance(content, dict):
+        raise ValueError("Project .mcp.json must contain a JSON object")
+    return content
+
+
+def _mcp_entries_added(
+    before: dict[str, Any], after: dict[str, Any]
+) -> dict[str, dict[str, Any]]:
+    additions = {}
+    for section in _MCP_ENTRY_SECTIONS:
+        before_entries = before.get(section)
+        after_entries = after.get(section)
+        if not isinstance(before_entries, dict):
+            before_entries = {}
+        if not isinstance(after_entries, dict):
+            continue
+        added = {
+            name: value
+            for name, value in after_entries.items()
+            if name not in before_entries
+        }
+        if added:
+            additions[section] = added
+    return additions
+
+
+def _remove_owned_mcp_entries(project_root, owned_entries: Any) -> None:
+    if not isinstance(owned_entries, dict):
+        return
+    mcp_path = project_root / ".mcp.json"
+    if not mcp_path.exists():
+        return
+    config = _read_mcp_config(project_root)
+    changed = False
+    for section in _MCP_ENTRY_SECTIONS:
+        expected_entries = owned_entries.get(section)
+        current_entries = config.get(section)
+        if not isinstance(expected_entries, dict) or not isinstance(current_entries, dict):
+            continue
+        for name, expected_value in expected_entries.items():
+            if current_entries.get(name) == expected_value:
+                del current_entries[name]
+                changed = True
+        if not current_entries:
+            config.pop(section, None)
+    if changed:
+        mcp_path.write_text(json.dumps(config, indent=2))
 
 
 def _print_extensions(project_root) -> None:
@@ -171,8 +227,16 @@ def config_set(
         phase = "synchronization"
         try:
             _, directives_path = sync_team_ai_directives(value, project_root, force=False)
+            phase = "skill installation"
+            _install_skills_from_path(
+                team_directives_path=directives_path,
+                project_path=project_root,
+                selected_ai=selected_ai,
+                force=False,
+            )
             if (directives_path / ".mcp.json").exists():
                 phase = "MCP configuration"
+                before_mcp = _read_mcp_config(project_root)
                 mcp_installed, mcp_messages, _, _ = install_mcp_config(
                     directives_path, project_root
                 )
@@ -181,13 +245,14 @@ def config_set(
                         "\n".join(mcp_messages)
                         or "Failed to install MCP configuration"
                     )
-            phase = "skill installation"
-            _install_skills_from_path(
-                team_directives_path=directives_path,
-                project_path=project_root,
-                selected_ai=selected_ai,
-                force=False,
-            )
+                additions = _mcp_entries_added(before_mcp, _read_mcp_config(project_root))
+                existing_entries = options.get(_TEAM_DIRECTIVES_MCP_KEY, {})
+                if not isinstance(existing_entries, dict):
+                    existing_entries = {}
+                for section, entries in additions.items():
+                    existing_entries.setdefault(section, {}).update(entries)
+                if existing_entries:
+                    options[_TEAM_DIRECTIVES_MCP_KEY] = existing_entries
         except Exception as exc:
             console.print(f"Team AI directives {phase} failed: {exc}", markup=False)
             console.print(
@@ -213,10 +278,16 @@ def config_unset(key: str = typer.Argument(help="Configuration key")) -> None:
 
     project_root = _require_specify_project()
     options = load_init_options(project_root)
+    try:
+        _remove_owned_mcp_entries(project_root, options.get(_TEAM_DIRECTIVES_MCP_KEY))
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        console.print(f"Unable to clean team MCP configuration: {exc}", markup=False)
+        raise typer.Exit(1) from None
     removed = ExtensionManager(project_root).remove("team-ai-directives")
     had_source = "team_ai_directives" in options
-    if had_source:
+    if had_source or _TEAM_DIRECTIVES_MCP_KEY in options:
         options.pop("team_ai_directives")
+        options.pop(_TEAM_DIRECTIVES_MCP_KEY, None)
         save_init_options(project_root, options)
     if removed:
         console.print("Removed team-ai-directives extension and configuration.")

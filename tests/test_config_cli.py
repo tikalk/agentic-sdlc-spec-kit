@@ -238,6 +238,34 @@ def test_config_set_team_directives_installs_mcp_configuration(tmp_path, monkeyp
     assert (project / ".mcp.json").read_text() == '{"mcpServers": {"team": {}}}'
 
 
+def test_config_unset_team_directives_removes_owned_mcp_entries(tmp_path, monkeypatch):
+    """Unsetting directives must preserve user-owned MCP configuration."""
+    project = _project(tmp_path)
+    source = tmp_path / "knowledge-base"
+    source.mkdir()
+    (source / ".mcp.json").write_text(
+        '{"mcpServers": {"team": {"command": "team-server"}}}'
+    )
+    (project / ".mcp.json").write_text(
+        '{"mcpServers": {"user": {"command": "user-server"}}}'
+    )
+    monkeypatch.chdir(project)
+
+    def sync(value, project_root, *, force):
+        return "local", source
+
+    monkeypatch.setattr(config, "sync_team_ai_directives", sync)
+    monkeypatch.setattr(config, "_install_skills_from_path", lambda **kwargs: [])
+
+    assert runner.invoke(
+        app, ["config", "set", "team-ai-directives", str(source)]
+    ).exit_code == 0
+    result = runner.invoke(app, ["config", "unset", "team-ai-directives"])
+
+    assert result.exit_code == 0, result.output
+    assert (project / ".mcp.json").read_text() == '{\n  "mcpServers": {\n    "user": {\n      "command": "user-server"\n    }\n  }\n}'
+
+
 def test_config_set_team_directives_preserves_source_when_mcp_install_fails(
     tmp_path, monkeypatch
 ):

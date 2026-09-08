@@ -535,6 +535,48 @@ def _install_taskstoissues_config(project_root: Path) -> None:
         pass
 
 
+def _replace_cached_team_directives_archive(zip_path: Path, download_dir: Path) -> Path:
+    """Extract an archive without discarding the previously cached knowledge base."""
+    import zipfile
+
+    extract_dir = download_dir / "team-ai-directives-kb-extracted"
+    staging_dir = download_dir / "team-ai-directives-kb-staging"
+    backup_dir = download_dir / "team-ai-directives-kb-previous"
+    if staging_dir.exists():
+        shutil.rmtree(staging_dir)
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+    staging_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with zipfile.ZipFile(zip_path, "r") as archive:
+            archive.extractall(staging_dir)
+
+        knowledge_base = staging_dir
+        entries = [entry for entry in knowledge_base.iterdir() if entry.is_dir()]
+        if len(entries) == 1 and not (knowledge_base / "context_modules").exists():
+            subdir = entries[0]
+            if (subdir / "context_modules").exists() or (subdir / ".skills.json").exists():
+                knowledge_base = subdir
+
+        relative_path = knowledge_base.relative_to(staging_dir)
+        if extract_dir.exists():
+            extract_dir.replace(backup_dir)
+        try:
+            staging_dir.replace(extract_dir)
+        except Exception:
+            if backup_dir.exists():
+                backup_dir.replace(extract_dir)
+            raise
+        if backup_dir.exists():
+            shutil.rmtree(backup_dir)
+        return extract_dir / relative_path
+    except Exception:
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
+        raise
+
+
 def sync_team_ai_directives(
     repo_url: str, project_root: Path, *, force: bool = False
 ) -> tuple[str, Path]:
@@ -656,26 +698,7 @@ def sync_team_ai_directives(
                     f"Downloaded file is not a valid ZIP archive: {repo_url}"
                 )
 
-            import zipfile
-
-            extract_dir = download_dir / "team-ai-directives-kb-extracted"
-            if extract_dir.exists():
-                shutil.rmtree(extract_dir)
-            extract_dir.mkdir(parents=True, exist_ok=True)
-
-            with zipfile.ZipFile(zip_path, 'r') as zf:
-                zf.extractall(extract_dir)
-
-            # Find the actual content directory
-            kb_path = extract_dir
-            entries = [e for e in kb_path.iterdir() if e.is_dir()]
-            if len(entries) == 1 and not (kb_path / "context_modules").exists():
-                subdir = entries[0]
-                if (
-                    (subdir / "context_modules").exists()
-                    or (subdir / ".skills.json").exists()
-                ):
-                    kb_path = subdir
+            kb_path = _replace_cached_team_directives_archive(zip_path, download_dir)
 
             _update_agent_context(project_root)
             return ("installed", kb_path)

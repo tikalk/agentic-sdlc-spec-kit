@@ -68,13 +68,15 @@ installed without replacing an existing one, merges its `.mcp.json` when
 present, and installs any source-declared default skills that are not already
 present.
 Unsetting it removes the governance extension and the saved source setting.
-Copied team skills are intentionally left in the active agent's skills
-directory for manual review.
+MCP entries that the source added are removed if they remain unchanged; entries
+that a user modified are preserved. Copied team skills are intentionally left
+in the active agent's skills directory for manual review.
 
 Installation is not transactional. If synchronization, MCP configuration, or
 skill installation fails, the command exits with an error and leaves the
 previous saved source unchanged. The extension and some skills may already
-have been installed.
+have been installed. Downloaded archive sources keep their previous cached
+copy until the replacement archive extracts successfully.
 Inspect and repair incomplete skill files, correct the reported cause, and
 retry the same `config set team-ai-directives` command. Existing skill files
 are skipped, even if a failed copy left them incomplete; retry alone does not
