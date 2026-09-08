@@ -172,7 +172,14 @@ def config_set(
             _, directives_path = sync_team_ai_directives(value, project_root, force=False)
             if (directives_path / ".mcp.json").exists():
                 phase = "MCP configuration"
-                install_mcp_config(directives_path, project_root)
+                mcp_installed, mcp_messages, _, _ = install_mcp_config(
+                    directives_path, project_root
+                )
+                if not mcp_installed:
+                    raise RuntimeError(
+                        "\n".join(mcp_messages)
+                        or "Failed to install MCP configuration"
+                    )
             phase = "skill installation"
             _install_skills_from_path(
                 team_directives_path=directives_path,

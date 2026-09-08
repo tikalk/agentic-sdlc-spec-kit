@@ -220,6 +220,35 @@ def test_config_set_team_directives_installs_mcp_configuration(tmp_path, monkeyp
     assert (project / ".mcp.json").read_text() == '{"mcpServers": {"team": {}}}'
 
 
+def test_config_set_team_directives_preserves_source_when_mcp_install_fails(
+    tmp_path, monkeypatch
+):
+    """A malformed MCP config must not be recorded as a successful setup."""
+    project = _project(tmp_path)
+    save_init_options(
+        project,
+        {**load_init_options(project), "team_ai_directives": "/previous/source"},
+    )
+    source = tmp_path / "knowledge-base"
+    source.mkdir()
+    (source / ".mcp.json").write_text("{")
+    monkeypatch.chdir(project)
+
+    def sync(value, project_root, *, force):
+        return "local", source
+
+    monkeypatch.setattr(config, "sync_team_ai_directives", sync)
+
+    result = runner.invoke(
+        app,
+        ["config", "set", "team-ai-directives", str(source)],
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "Invalid MCP config" in result.output
+    assert load_init_options(project)["team_ai_directives"] == "/previous/source"
+
+
 def test_config_set_team_directives_persists_an_absolute_source_path(
     tmp_path, monkeypatch
 ):
