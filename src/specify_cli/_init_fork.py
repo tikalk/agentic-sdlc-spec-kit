@@ -43,6 +43,7 @@ from ._assets import _locate_bundled_extension
 from ._core_fork import (
     compute_skill_output_name,
     install_mcp_config,
+    mcp_entries_added,
 )
 from .extensions import ExtensionManager
 
@@ -232,6 +233,7 @@ def get_speckit_version() -> str:
 
 # Directory name for team directives repository
 TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
+TEAM_DIRECTIVES_MCP_KEY = "team_ai_directives_mcp"
 
 
 # ============================================================================
@@ -568,8 +570,6 @@ def _replace_cached_team_directives_archive(zip_path: Path, download_dir: Path) 
             if backup_dir.exists():
                 backup_dir.replace(extract_dir)
             raise
-        if backup_dir.exists():
-            shutil.rmtree(backup_dir)
         return extract_dir / relative_path
     except Exception:
         if staging_dir.exists():
@@ -577,8 +577,30 @@ def _replace_cached_team_directives_archive(zip_path: Path, download_dir: Path) 
         raise
 
 
+def _restore_cached_team_directives_archive(download_dir: Path) -> None:
+    """Restore the prior archive cache after post-extraction setup fails."""
+    extract_dir = download_dir / "team-ai-directives-kb-extracted"
+    backup_dir = download_dir / "team-ai-directives-kb-previous"
+    if not backup_dir.exists():
+        return
+    if extract_dir.exists():
+        shutil.rmtree(extract_dir)
+    backup_dir.replace(extract_dir)
+
+
+def _discard_cached_team_directives_backup(download_dir: Path) -> None:
+    """Discard the prior archive cache after the replacement is fully configured."""
+    backup_dir = download_dir / "team-ai-directives-kb-previous"
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+
+
 def sync_team_ai_directives(
-    repo_url: str, project_root: Path, *, force: bool = False
+    repo_url: str,
+    project_root: Path,
+    *,
+    force: bool = False,
+    preserve_previous_cache: bool = False,
 ) -> tuple[str, Path]:
     """Install bundled team-ai-directives extension and resolve knowledge base path.
 
@@ -698,10 +720,16 @@ def sync_team_ai_directives(
                     f"Downloaded file is not a valid ZIP archive: {repo_url}"
                 )
 
-            kb_path = _replace_cached_team_directives_archive(zip_path, download_dir)
-
-            _update_agent_context(project_root)
-            return ("installed", kb_path)
+            try:
+                kb_path = _replace_cached_team_directives_archive(zip_path, download_dir)
+                _update_agent_context(project_root)
+                if not preserve_previous_cache:
+                    _discard_cached_team_directives_backup(download_dir)
+                return ("installed", kb_path)
+            except Exception:
+                if not preserve_previous_cache:
+                    _restore_cached_team_directives_archive(download_dir)
+                raise
         finally:
             if zip_path.exists():
                 zip_path.unlink()
@@ -767,6 +795,7 @@ def pre_init(
 
     tracker.start("team-directives")
     directives_path: Path | None = None
+    owned_mcp_entries: dict[str, dict[str, Any]] = {}
 
     try:
         # Install bundled extension and resolve knowledge base path
@@ -780,6 +809,10 @@ def pre_init(
             if tracker:
                 tracker.start("team-mcp")
             try:
+                mcp_path = project_path / ".mcp.json"
+                before_mcp = (
+                    json.loads(mcp_path.read_text()) if mcp_path.exists() else {}
+                )
                 success, messages, resolved, unresolved = install_mcp_config(
                     directives_path, project_path
                 )
@@ -831,6 +864,9 @@ def pre_init(
                 status_msg = ", ".join(status_parts) if status_parts else "installed"
 
                 if success:
+                    after_mcp = json.loads(mcp_path.read_text()) if mcp_path.exists() else {}
+                    if isinstance(before_mcp, dict) and isinstance(after_mcp, dict):
+                        owned_mcp_entries = mcp_entries_added(before_mcp, after_mcp)
                     if tracker:
                         tracker.complete("team-mcp", status_msg)
 
@@ -928,6 +964,8 @@ def pre_init(
 
         init_opts = load_init_options(project_path)
         init_opts["team_ai_directives"] = str(directives_path)
+        if owned_mcp_entries:
+            init_opts[TEAM_DIRECTIVES_MCP_KEY] = owned_mcp_entries
         save_init_options(project_path, init_opts)
 
 

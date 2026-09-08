@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -174,7 +175,7 @@ def test_config_set_team_directives_saves_resolved_source_and_skills(
     monkeypatch.chdir(project)
     calls = []
 
-    def sync(source, project_root, *, force):
+    def sync(source, project_root, *, force, preserve_previous_cache=False):
         calls.append(("sync", source, project_root, force))
         return "local", Path("/resolved/team-directives")
 
@@ -214,7 +215,7 @@ def test_config_set_team_directives_installs_mcp_configuration(tmp_path, monkeyp
     (source / ".mcp.json").write_text('{"mcpServers": {"team": {}}}')
     monkeypatch.chdir(project)
 
-    def sync(value, project_root, *, force):
+    def sync(value, project_root, *, force, preserve_previous_cache=False):
         return "local", source
 
     def install_skills(**kwargs):
@@ -251,7 +252,7 @@ def test_config_unset_team_directives_removes_owned_mcp_entries(tmp_path, monkey
     )
     monkeypatch.chdir(project)
 
-    def sync(value, project_root, *, force):
+    def sync(value, project_root, *, force, preserve_previous_cache=False):
         return "local", source
 
     monkeypatch.setattr(config, "sync_team_ai_directives", sync)
@@ -264,6 +265,44 @@ def test_config_unset_team_directives_removes_owned_mcp_entries(tmp_path, monkey
 
     assert result.exit_code == 0, result.output
     assert (project / ".mcp.json").read_text() == '{\n  "mcpServers": {\n    "user": {\n      "command": "user-server"\n    }\n  }\n}'
+
+
+def test_config_set_team_directives_replaces_owned_mcp_entries_when_new_source_has_none(
+    tmp_path, monkeypatch
+):
+    """Changing source must not leave the prior source's MCP server enabled."""
+    project = _project(tmp_path)
+    source = tmp_path / "knowledge-base-without-mcp"
+    source.mkdir()
+    save_init_options(
+        project,
+        {
+            **load_init_options(project),
+            "team_ai_directives": "/old/source",
+            "team_ai_directives_mcp": {
+                "mcpServers": {"team": {"command": "old-server"}}
+            },
+        },
+    )
+    (project / ".mcp.json").write_text(
+        '{"mcpServers": {"team": {"command": "old-server"}}}'
+    )
+    monkeypatch.chdir(project)
+
+    monkeypatch.setattr(
+        config,
+        "sync_team_ai_directives",
+        lambda value, project_root, *, force, preserve_previous_cache=False: ("local", source),
+    )
+    monkeypatch.setattr(config, "_install_skills_from_path", lambda **kwargs: [])
+
+    result = runner.invoke(
+        app, ["config", "set", "team-ai-directives", str(source)]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads((project / ".mcp.json").read_text()) == {}
+    assert "team_ai_directives_mcp" not in load_init_options(project)
 
 
 def test_config_set_team_directives_preserves_source_when_mcp_install_fails(
@@ -280,7 +319,7 @@ def test_config_set_team_directives_preserves_source_when_mcp_install_fails(
     (source / ".mcp.json").write_text("{")
     monkeypatch.chdir(project)
 
-    def sync(value, project_root, *, force):
+    def sync(value, project_root, *, force, preserve_previous_cache=False):
         return "local", source
 
     monkeypatch.setattr(config, "sync_team_ai_directives", sync)
@@ -295,6 +334,45 @@ def test_config_set_team_directives_preserves_source_when_mcp_install_fails(
     assert load_init_options(project)["team_ai_directives"] == "/previous/source"
 
 
+def test_config_set_team_directives_restores_archive_cache_when_skills_fail(
+    tmp_path, monkeypatch
+):
+    """A failed replacement must not repoint the previously saved cached source."""
+    project = _project(tmp_path)
+    save_init_options(
+        project,
+        {**load_init_options(project), "team_ai_directives": "/previous/source"},
+    )
+    downloads = project / ".specify" / "extensions" / ".cache" / "downloads"
+    current = downloads / "team-ai-directives-kb-extracted"
+    backup = downloads / "team-ai-directives-kb-previous"
+    current.mkdir(parents=True)
+    (current / "CDR.md").write_text("previous directives")
+    replacement = tmp_path / "replacement"
+    replacement.mkdir()
+    monkeypatch.chdir(project)
+
+    def sync(value, project_root, *, force, preserve_previous_cache=False):
+        current.replace(backup)
+        current.mkdir()
+        (current / "CDR.md").write_text("replacement directives")
+        return "installed", replacement
+
+    def install_skills(**kwargs):
+        raise OSError("copy denied")
+
+    monkeypatch.setattr(config, "sync_team_ai_directives", sync)
+    monkeypatch.setattr(config, "_install_skills_from_path", install_skills)
+
+    result = runner.invoke(
+        app, ["config", "set", "team-ai-directives", "https://example.com/new.zip"]
+    )
+
+    assert result.exit_code == 1, result.output
+    assert (current / "CDR.md").read_text() == "previous directives"
+    assert not backup.exists()
+
+
 def test_config_set_team_directives_persists_an_absolute_source_path(
     tmp_path, monkeypatch
 ):
@@ -302,7 +380,7 @@ def test_config_set_team_directives_persists_an_absolute_source_path(
     project = _project(tmp_path)
     monkeypatch.chdir(project)
 
-    def sync(value, project_root, *, force):
+    def sync(value, project_root, *, force, preserve_previous_cache=False):
         return "local", Path("knowledge-base")
 
     def install_skills(**kwargs):
@@ -397,7 +475,7 @@ def test_config_team_directives_failure_preserves_source_and_allows_retry(
     partial_extension = project / ".specify" / "extensions" / "team-ai-directives"
     failing = True
 
-    def sync(value, project_root, *, force):
+    def sync(value, project_root, *, force, preserve_previous_cache=False):
         partial_extension.mkdir(parents=True, exist_ok=True)
         if failing and phase == "synchronization":
             raise ValueError("source unavailable")

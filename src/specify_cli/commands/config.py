@@ -10,15 +10,22 @@ from rich.table import Table
 from rich.text import Text
 
 from .._console import console
-from .._core_fork import install_mcp_config
+from .._core_fork import MCP_ENTRY_SECTIONS, install_mcp_config, mcp_entries_added
 from .._init_options import load_init_options, save_init_options
 from ..extensions import ExtensionManager
 from ..extensions._commands import extension_app
 
 try:
-    from .._init_fork import _install_skills_from_path, sync_team_ai_directives
+    from .._init_fork import (
+        _discard_cached_team_directives_backup,
+        _install_skills_from_path,
+        _restore_cached_team_directives_archive,
+        sync_team_ai_directives,
+    )
 except ImportError:
+    _discard_cached_team_directives_backup = None
     _install_skills_from_path = None
+    _restore_cached_team_directives_archive = None
     sync_team_ai_directives = None
 
 try:
@@ -49,7 +56,6 @@ _INIT_OPTION_KEYS = {
 }
 _FEATURE_NUMBERING = {"sequential", "timestamp"}
 _TEAM_DIRECTIVES_MCP_KEY = "team_ai_directives_mcp"
-_MCP_ENTRY_SECTIONS = ("mcpServers", "tools")
 
 
 def _require_specify_project():
@@ -78,27 +84,6 @@ def _read_mcp_config(project_root) -> dict[str, Any]:
     return content
 
 
-def _mcp_entries_added(
-    before: dict[str, Any], after: dict[str, Any]
-) -> dict[str, dict[str, Any]]:
-    additions = {}
-    for section in _MCP_ENTRY_SECTIONS:
-        before_entries = before.get(section)
-        after_entries = after.get(section)
-        if not isinstance(before_entries, dict):
-            before_entries = {}
-        if not isinstance(after_entries, dict):
-            continue
-        added = {
-            name: value
-            for name, value in after_entries.items()
-            if name not in before_entries
-        }
-        if added:
-            additions[section] = added
-    return additions
-
-
 def _remove_owned_mcp_entries(project_root, owned_entries: Any) -> None:
     if not isinstance(owned_entries, dict):
         return
@@ -107,7 +92,7 @@ def _remove_owned_mcp_entries(project_root, owned_entries: Any) -> None:
         return
     config = _read_mcp_config(project_root)
     changed = False
-    for section in _MCP_ENTRY_SECTIONS:
+    for section in MCP_ENTRY_SECTIONS:
         expected_entries = owned_entries.get(section)
         current_entries = config.get(section)
         if not isinstance(expected_entries, dict) or not isinstance(current_entries, dict):
@@ -225,8 +210,15 @@ def config_set(
                 "team-ai-directives requires an active integration; run specify integration use <key> first"
             )
         phase = "synchronization"
+        mcp_path = project_root / ".mcp.json"
+        previous_mcp = mcp_path.read_bytes() if mcp_path.exists() else None
+        previous_owned_entries = options.get(_TEAM_DIRECTIVES_MCP_KEY)
+        mcp_reconciled = False
+        download_dir = project_root / ".specify" / "extensions" / ".cache" / "downloads"
         try:
-            _, directives_path = sync_team_ai_directives(value, project_root, force=False)
+            _, directives_path = sync_team_ai_directives(
+                value, project_root, force=False, preserve_previous_cache=True
+            )
             phase = "skill installation"
             _install_skills_from_path(
                 team_directives_path=directives_path,
@@ -234,8 +226,11 @@ def config_set(
                 selected_ai=selected_ai,
                 force=False,
             )
+            phase = "MCP configuration"
+            _remove_owned_mcp_entries(project_root, previous_owned_entries)
+            mcp_reconciled = True
+            additions = {}
             if (directives_path / ".mcp.json").exists():
-                phase = "MCP configuration"
                 before_mcp = _read_mcp_config(project_root)
                 mcp_installed, mcp_messages, _, _ = install_mcp_config(
                     directives_path, project_root
@@ -245,15 +240,19 @@ def config_set(
                         "\n".join(mcp_messages)
                         or "Failed to install MCP configuration"
                     )
-                additions = _mcp_entries_added(before_mcp, _read_mcp_config(project_root))
-                existing_entries = options.get(_TEAM_DIRECTIVES_MCP_KEY, {})
-                if not isinstance(existing_entries, dict):
-                    existing_entries = {}
-                for section, entries in additions.items():
-                    existing_entries.setdefault(section, {}).update(entries)
-                if existing_entries:
-                    options[_TEAM_DIRECTIVES_MCP_KEY] = existing_entries
+                additions = mcp_entries_added(before_mcp, _read_mcp_config(project_root))
+            if additions:
+                options[_TEAM_DIRECTIVES_MCP_KEY] = additions
+            else:
+                options.pop(_TEAM_DIRECTIVES_MCP_KEY, None)
         except Exception as exc:
+            if mcp_reconciled:
+                if previous_mcp is None:
+                    mcp_path.unlink(missing_ok=True)
+                else:
+                    mcp_path.write_bytes(previous_mcp)
+            if _restore_cached_team_directives_archive is not None:
+                _restore_cached_team_directives_archive(download_dir)
             console.print(f"Team AI directives {phase} failed: {exc}", markup=False)
             console.print(
                 "Partial extension or skills files may remain. Inspect and repair incomplete "
@@ -262,6 +261,11 @@ def config_set(
             )
             raise typer.Exit(1) from None
         options["team_ai_directives"] = str(directives_path.resolve())
+        save_init_options(project_root, options)
+        if _discard_cached_team_directives_backup is not None:
+            _discard_cached_team_directives_backup(download_dir)
+        console.print(f"Updated {normalized_key}")
+        return
     else:
         raise typer.BadParameter(f"Unknown configuration key: {key}")
 

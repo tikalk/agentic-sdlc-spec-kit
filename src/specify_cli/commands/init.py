@@ -857,12 +857,18 @@ def register(app: typer.Typer) -> None:
                     "speckit_version": get_speckit_version(),
                 }
                 if _FORK:
+                    from .._init_options import load_init_options
+
+                    pre_init_options = load_init_options(project_path)
+                    owned_mcp_entries = pre_init_options.get("team_ai_directives_mcp")
                     if team_ai_directives:
                         from pathlib import Path as _Path
                         _td_path = _Path(team_ai_directives).expanduser()
                         if _td_path.exists():
                             team_ai_directives = str(_td_path.resolve())
                         init_opts["team_ai_directives"] = team_ai_directives
+                    if isinstance(owned_mcp_entries, dict):
+                        init_opts["team_ai_directives_mcp"] = owned_mcp_entries
                 if resolved_integration.is_skills_mode(
                     integration_parsed_options or None, project_root=project_path
                 ):
