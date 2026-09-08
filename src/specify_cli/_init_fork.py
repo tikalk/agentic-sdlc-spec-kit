@@ -671,7 +671,6 @@ def sync_team_ai_directives(
                 f"Invalid team-ai-directives knowledge base: {potential_path}\n"
                 f"Missing expected content (context_modules/, .skills.json, or CDR.md)"
             )
-        _update_agent_context(project_root)
         return ("local", potential_path)
 
     if repo_url.endswith(".zip") or "/archive/" in repo_url:
@@ -722,7 +721,6 @@ def sync_team_ai_directives(
 
             try:
                 kb_path = _replace_cached_team_directives_archive(zip_path, download_dir)
-                _update_agent_context(project_root)
                 if not preserve_previous_cache:
                     _discard_cached_team_directives_backup(download_dir)
                 return ("installed", kb_path)

@@ -207,6 +207,42 @@ def test_config_set_team_directives_saves_resolved_source_and_skills(
     ]
 
 
+def test_config_set_team_directives_refreshes_context_after_saving_source(
+    tmp_path, monkeypatch
+):
+    """The context refresh must observe the newly persisted source."""
+    project = _project(tmp_path)
+    source = tmp_path / "knowledge-base"
+    source.mkdir()
+    monkeypatch.chdir(project)
+    observed_sources = []
+
+    monkeypatch.setattr(
+        config,
+        "sync_team_ai_directives",
+        lambda value, project_root, *, force, preserve_previous_cache=False: (
+            "local",
+            source,
+        ),
+    )
+    monkeypatch.setattr(config, "_install_skills_from_path", lambda **kwargs: [])
+    monkeypatch.setattr(
+        config,
+        "_update_agent_context",
+        lambda project_root: observed_sources.append(
+            load_init_options(project_root).get("team_ai_directives")
+        ),
+        raising=False,
+    )
+
+    result = runner.invoke(
+        app, ["config", "set", "team-ai-directives", str(source)]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert observed_sources == [str(source.resolve())]
+
+
 def test_config_set_team_directives_installs_mcp_configuration(tmp_path, monkeypatch):
     """A post-init directives source must apply its MCP configuration."""
     project = _project(tmp_path)
@@ -430,6 +466,45 @@ def test_config_unset_team_directives_removes_extension_and_saved_source(
     assert removed == ["team-ai-directives"]
     assert "team_ai_directives" not in load_init_options(project)
     assert "copied team skills" in result.output.lower()
+
+
+def test_config_unset_team_directives_refreshes_context_after_removing_source(
+    tmp_path, monkeypatch
+):
+    """The context refresh must not retain an unset directives source."""
+    project = _project(tmp_path)
+    save_init_options(
+        project,
+        {
+            **load_init_options(project),
+            "team_ai_directives": "/resolved/team-directives",
+        },
+    )
+    monkeypatch.chdir(project)
+    observed_sources = []
+
+    class FakeManager:
+        def __init__(self, project_root):
+            assert project_root == project
+
+        def remove(self, extension_id):
+            assert extension_id == "team-ai-directives"
+            return True
+
+    monkeypatch.setattr(config, "ExtensionManager", FakeManager)
+    monkeypatch.setattr(
+        config,
+        "_update_agent_context",
+        lambda project_root: observed_sources.append(
+            load_init_options(project_root).get("team_ai_directives")
+        ),
+        raising=False,
+    )
+
+    result = runner.invoke(app, ["config", "unset", "team-ai-directives"])
+
+    assert result.exit_code == 0, result.output
+    assert observed_sources == [None]
 
 
 @pytest.mark.parametrize("saved_source", [False, True])

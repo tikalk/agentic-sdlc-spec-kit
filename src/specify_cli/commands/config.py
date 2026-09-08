@@ -20,12 +20,14 @@ try:
         _discard_cached_team_directives_backup,
         _install_skills_from_path,
         _restore_cached_team_directives_archive,
+        _update_agent_context,
         sync_team_ai_directives,
     )
 except ImportError:
     _discard_cached_team_directives_backup = None
     _install_skills_from_path = None
     _restore_cached_team_directives_archive = None
+    _update_agent_context = None
     sync_team_ai_directives = None
 
 try:
@@ -262,6 +264,8 @@ def config_set(
             raise typer.Exit(1) from None
         options["team_ai_directives"] = str(directives_path.resolve())
         save_init_options(project_root, options)
+        if _update_agent_context is not None:
+            _update_agent_context(project_root)
         if _discard_cached_team_directives_backup is not None:
             _discard_cached_team_directives_backup(download_dir)
         console.print(f"Updated {normalized_key}")
@@ -300,6 +304,8 @@ def config_unset(key: str = typer.Argument(help="Configuration key")) -> None:
     else:
         console.print("Nothing to unset: no team-ai-directives extension or saved source.")
     if removed or had_source:
+        if _update_agent_context is not None:
+            _update_agent_context(project_root)
         console.print("Copied team skills remain for manual review in the active agent skills directory.")
 
 

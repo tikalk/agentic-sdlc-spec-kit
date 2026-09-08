@@ -71,6 +71,9 @@ Unsetting it removes the governance extension and the saved source setting.
 MCP entries that the source added are removed if they remain unchanged; entries
 that a user modified are preserved. Copied team skills are intentionally left
 in the active agent's skills directory for manual review.
+When the `agent-context` extension is installed, its managed context section
+refreshes after a source is set or unset so that team directives match the
+saved configuration.
 
 Installation is not transactional. If synchronization, MCP configuration, or
 skill installation fails, the command exits with an error and leaves the
