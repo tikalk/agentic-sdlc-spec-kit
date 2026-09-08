@@ -7,6 +7,7 @@ from typing import Any
 
 import typer
 from rich.table import Table
+from rich.text import Text
 
 from .._console import console
 from .._core_fork import install_mcp_config
@@ -108,7 +109,7 @@ def config_list(
     table.add_column("Value")
     for display_key, stored_key in _INIT_OPTION_KEYS.items():
         if stored_key in options:
-            table.add_row(display_key, _display_value(options[stored_key]))
+            table.add_row(display_key, Text(_display_value(options[stored_key])))
     console.print(table)
     _print_extensions(project_root)
 
@@ -124,7 +125,7 @@ def config_get(key: str = typer.Argument(help="Configuration key")) -> None:
     if stored_key not in options:
         console.print(f"{key.replace('_', '-')} is not set")
         raise typer.Exit(1)
-    console.print(_display_value(options[stored_key]))
+    console.print(_display_value(options[stored_key]), markup=False)
 
 
 @config_app.command("set")

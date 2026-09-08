@@ -54,6 +54,24 @@ def test_config_list_shows_recorded_skills_layout(tmp_path, monkeypatch):
     assert "True" in result.output
 
 
+@pytest.mark.parametrize(
+    "command", [["config", "get", "team-ai-directives"], ["config", "list"]]
+)
+def test_config_displays_literal_brackets_in_saved_values(tmp_path, monkeypatch, command):
+    project = _project(tmp_path)
+    saved_path = "/tmp/team-[directives]"
+    save_init_options(
+        project,
+        {**load_init_options(project), "team_ai_directives": saved_path},
+    )
+    monkeypatch.chdir(project)
+
+    result = runner.invoke(app, command)
+
+    assert result.exit_code == 0, result.output
+    assert saved_path in result.output
+
+
 def test_config_set_script_rejects_metadata_only_change(tmp_path, monkeypatch):
     project = _project(tmp_path)
     monkeypatch.chdir(project)

@@ -16,10 +16,10 @@ Integrations connect Spec Kit to your AI coding agent. Each integration sets up 
 
 ## Project Configuration
 
-Project configuration lets you inspect and safely change selected settings
-recorded during initialization, including script type, feature numbering, and
-the team-directives source. Extension lifecycle commands are also available
-under `specify config extension`.
+Project configuration lets you inspect persisted initialization settings and
+change feature numbering or the team-directives source. Script type changes are
+handled by `specify integration upgrade <integration> --script <type>`.
+Extension lifecycle commands are also available under `specify config extension`.
 
 [Project configuration reference →](configuration.md)
 

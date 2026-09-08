@@ -17,7 +17,7 @@ authors:
   - given-names: Manfred
     family-names: Riem
     alias: mnriem
-repository-code: "https://github.com/github/spec-kit"
+repository-code: "https://github.com/tikalk/agentic-sdlc-spec-kit"
 url: "https://tikalk.github.io/agentic-sdlc-spec-kit/"
 license: MIT
 version: "0.10.2"
