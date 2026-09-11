@@ -49,84 +49,36 @@ Re-running after code edits requires no reinstall because of editable mode.
 
 ## 4. Verify Post-Initialization Configuration
 
-Use a disposable project so configuration changes do not alter a real project.
-From the repository root, save the repository path and create a temporary test
-project:
+Use the automated verifier to exercise the post-initialization configuration
+workflow in a disposable Copilot project. After completing the editable install
+in the previous section, run:
 
 ```bash
-SPECIFY_SRC="$(pwd)"
-SPECIFY="$SPECIFY_SRC/.venv/bin/specify"
-TEST_ROOT="$(mktemp -d)"
-"$SPECIFY" init "$TEST_ROOT/project" \
-  --integration copilot --ignore-agent-tools --script sh
-cd "$TEST_ROOT/project"
+scripts/verify-post-initialization-configuration.sh --specify "$(pwd)/.venv/bin/specify"
 ```
 
-`"$SPECIFY" ...` executes the editable `specify` console entry point from the
-current working tree. The previous section creates that environment. If you
-prefer uv to manage the environment, use `uv run --project "$SPECIFY_SRC"
-specify ...` instead.
+The script verifies configuration reads, script upgrades, mutable settings,
+persisted options, protected settings, and the bundled `git` extension
+lifecycle. It removes the temporary project when it exits. Set `SPECIFY` to an
+executable path instead of passing `--specify` if preferred.
 
-Run the read and mutation commands and verify each result:
-
-```bash
-"$SPECIFY" config list
-"$SPECIFY" config list --json
-"$SPECIFY" config get script
-
-"$SPECIFY" integration upgrade copilot --script py
-"$SPECIFY" config get script
-
-"$SPECIFY" config set feature-numbering timestamp
-"$SPECIFY" config get feature-numbering
-```
-
-The final two `get` commands must print `py` and `timestamp`. The corresponding
-values in `"$TEST_ROOT/project/.specify/init-options.json"` must match.
-Inspect `.github/skills/` and compare helper invocations with the selected
-templates. Core templates supporting `py` use `scripts/python/`; bundled
-preset overrides without a `py` variant can still invoke shell helpers.
-
-Verify that integration ownership is enforced:
-
-```bash
-"$SPECIFY" config set integration claude
-"$SPECIFY" config set script sh
-"$SPECIFY" config set ai-skills true
-"$SPECIFY" config set here true
-```
-
-Each command must fail without changing saved settings. Integration selection
-must point to `specify integration use`, script and layout changes to
-`specify integration upgrade`, and `here` must be identified as read-only.
-
-Verify extension delegation using the bundled `git` extension:
-
-```bash
-"$SPECIFY" config extension list
-"$SPECIFY" config extension add git
-"$SPECIFY" config extension list
-"$SPECIFY" config extension disable git
-"$SPECIFY" config extension enable git
-"$SPECIFY" config extension remove git
-```
-
-The extension must appear as installed, disabled, enabled, and then absent in
-the corresponding list output.
-
-If you have a valid team-directives source, verify its lifecycle too. Replace
-the placeholder with a local directory or supported archive URL:
+The team-directives lifecycle still requires a source you control, so verify it
+separately when applicable. From a disposable initialized project, replace the
+placeholder with a local directory or supported archive URL:
 
 ```bash
 TEAM_DIRECTIVES_SOURCE="/absolute/path/to/team-ai-directives"
-"$SPECIFY" config set team-ai-directives "$TEAM_DIRECTIVES_SOURCE"
-"$SPECIFY" config get team-ai-directives
-"$SPECIFY" config unset team-ai-directives
+"$(pwd)/.venv/bin/specify" config set team-ai-directives "$TEAM_DIRECTIVES_SOURCE"
+"$(pwd)/.venv/bin/specify" config get team-ai-directives
+"$(pwd)/.venv/bin/specify" config unset team-ai-directives
 ```
 
 `get` must report the resolved source, and `unset` must remove the saved source
 and governance extension while warning that copied team skills remain for
 manual review.
+
+For manual slash-command testing and its pull-request reporting template, see
+[Manual testing](../CONTRIBUTING.md#manual-testing).
 
 ## 5. Invoke with uvx Directly From Git (Current Branch)
 
