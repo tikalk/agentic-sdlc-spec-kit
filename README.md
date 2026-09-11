@@ -40,7 +40,7 @@ This fork represents the evolution from a development process to a complete orga
     <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml"><img src="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml/badge.svg" alt="Release"/></a>
     <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/stargazers"><img src="https://img.shields.io/github/stars/tikalk/agentic-sdlc-spec-kit?style=social" alt="GitHub stars"/></a>
     <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/tikalk/agentic-sdlc-spec-kit" alt="License"/></a>
-    <a href="https://github.github.io/spec-kit/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
+    <a href="https://tikalk.github.io/agentic-sdlc-spec-kit/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
 </p>
 
 <p align="center">
@@ -396,6 +396,9 @@ specify init <project> --team-ai-directives https://github.com/your-org/team-ai-
 specify init <project> --team-ai-directives ~/workspace/team-ai-directives
 ```
 
+To change or remove the source after initialization, see
+[`specify config`](./docs/reference/configuration.md).
+
 Accepted sources are a local directory, a GitHub/GitLab archive URL, or a direct `.zip`/`.tar.gz` URL. Plain `.git` clone URLs are not supported.
 
 **Private Repositories**: If your team-ai-directives repository is private, configure authentication in `~/.specify/auth.json`:
@@ -469,7 +472,7 @@ to install.
 
 ## 🤖 Supported AI Coding Agent Integrations
 
-Spec Kit works with 30+ AI coding agents — both CLI tools and IDE-based assistants. See the full list with notes and usage details in the [Supported AI Coding Agent Integrations](https://github.github.io/spec-kit/reference/integrations.html) guide.
+Spec Kit works with 30+ AI coding agents — both CLI tools and IDE-based assistants. See the full list with notes and usage details in the [Supported AI Coding Agent Integrations](https://tikalk.github.io/agentic-sdlc-spec-kit/reference/integrations.html) guide.
 
 Run `specify integration list` to see all available integrations in your installed version.
 
@@ -536,7 +539,7 @@ Mission-driven SDLC automation with supervision modes and safety guardrails:
 
 ## 🔧 Specify CLI Reference
 
-For full command details, options, and examples, see the [CLI Reference](https://github.github.io/spec-kit/reference/overview.html).
+For full command details, options, and examples, see the [CLI Reference](https://tikalk.github.io/agentic-sdlc-spec-kit/reference/overview.html).
 
 ## 🧩 Making Spec Kit Your Own: Extensions & Presets
 
@@ -569,7 +572,7 @@ specify extension add <extension-name>
 
 For example, extensions could add Jira integration, post-implementation code review, V-Model test traceability, or project health diagnostics.
 
-See the [Extensions reference](https://github.github.io/spec-kit/reference/extensions.html) for the full command guide. Browse the [community extensions](#-community-extensions) above for what's available.
+See the [Extensions reference](https://tikalk.github.io/agentic-sdlc-spec-kit/reference/extensions.html) for the full command guide. Browse the [community extensions](#-community-extensions) above for what's available.
 
 ### Presets — Customize Existing Workflows
 
@@ -585,7 +588,7 @@ specify preset add <preset-name>
 
 For example, presets could restructure spec templates to require regulatory traceability, adapt the workflow to fit the methodology you use (e.g., Agile, Kanban, Waterfall, jobs-to-be-done, or domain-driven design), add mandatory security review gates to plans, enforce test-first task ordering, or localize the entire workflow to a different language. The [pirate-speak demo](https://github.com/mnriem/spec-kit-pirate-speak-preset-demo) shows just how deep the customization can go. Multiple presets can be stacked with priority ordering.
 
-See the [Presets reference](https://github.github.io/spec-kit/reference/presets.html) for the full command guide, including resolution order and priority stacking.
+See the [Presets reference](https://tikalk.github.io/agentic-sdlc-spec-kit/reference/presets.html) for the full command guide, including resolution order and priority stacking.
 
 ## 📦 Bundles: Role-Based Setups
 
@@ -1067,7 +1070,7 @@ The report is saved to `SPECIFY_FEATURE_DIRECTORY/verify.md` and includes an ove
 If any pillar fails, convergence tasks are appended for another implement pass. Run the fixes and re-converge.
 
 </details>
-- **[Quick Start Guide](https://github.github.io/spec-kit/quickstart.html)** - Step-by-step implementation walkthrough
+- **[Quick Start Guide](https://tikalk.github.io/agentic-sdlc-spec-kit/quickstart.html)** - Step-by-step implementation walkthrough
 
 ---
 

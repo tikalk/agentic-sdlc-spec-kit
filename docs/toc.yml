@@ -37,6 +37,8 @@
       href: reference/core.md
     - name: Integrations
       href: reference/integrations.md
+    - name: Project Configuration
+      href: reference/configuration.md
     - name: Extensions
       href: reference/extensions.md
     - name: Presets

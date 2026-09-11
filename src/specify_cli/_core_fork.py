@@ -53,6 +53,7 @@ FORK_DEFAULT_CATALOG_URL = (
 FORK_COMMUNITY_CATALOG_URL = (
     "https://raw.githubusercontent.com/tikalk/agentic-sdlc-spec-kit/main/extensions/catalog.community.json"
 )
+MCP_ENTRY_SECTIONS = ("mcpServers", "tools")
 
 
 def build_alias_map(project_root: Path) -> dict[str, str]:
@@ -400,6 +401,28 @@ def merge_mcp_configs_report_conflicts(existing: dict, incoming: dict) -> tuple[
                 merged["tools"][tool_name] = tool_config
 
     return merged, conflicts
+
+
+def mcp_entries_added(
+    before: dict[str, Any], after: dict[str, Any]
+) -> dict[str, dict[str, Any]]:
+    """Return MCP entries introduced by one merge without claiming existing entries."""
+    additions = {}
+    for section in MCP_ENTRY_SECTIONS:
+        before_entries = before.get(section)
+        after_entries = after.get(section)
+        if not isinstance(before_entries, dict):
+            before_entries = {}
+        if not isinstance(after_entries, dict):
+            continue
+        added = {
+            name: value
+            for name, value in after_entries.items()
+            if name not in before_entries
+        }
+        if added:
+            additions[section] = added
+    return additions
 
 
 def install_mcp_config(team_path: Path, project_root: Path) -> tuple[bool, list[str], list[str], list[str]]:

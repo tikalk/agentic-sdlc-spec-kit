@@ -148,6 +148,10 @@ job until a follow-up cleanup tightens the threshold.
 
 ### Manual testing
 
+This section covers testing slash-command behavior through a coding agent and
+reporting those results in a pull request. For post-initialization configuration,
+run the automated verifier in the [local development guide](docs/local-development.md#4-verify-post-initialization-configuration).
+
 #### Testing setup
 
 ```bash

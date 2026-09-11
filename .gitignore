@@ -41,6 +41,7 @@ env/
 *.log
 .env
 .env.local
+.envrc
 *.lock
 tmp/
 bin/

@@ -480,7 +480,7 @@ uv tool install agentic-sdlc-specify-cli --force --from git+https://github.com/t
    echo $GITHUB_TOKEN  # or $GITLAB_TOKEN
    ```
 4. Check token has access to the repository
-5. See [authentication documentation](https://github.github.io/spec-kit/reference/authentication.html) for more details
+5. See [authentication documentation](https://tikalk.github.io/agentic-sdlc-spec-kit/reference/authentication.html) for more details
 
 ### Issue: "No AI agent detected"
 

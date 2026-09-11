@@ -47,7 +47,40 @@ specify --help
 
 Re-running after code edits requires no reinstall because of editable mode.
 
-## 4. Invoke with uvx Directly From Git (Current Branch)
+## 4. Verify Post-Initialization Configuration
+
+Use the automated verifier to exercise the post-initialization configuration
+workflow in a disposable Copilot project. After completing the editable install
+in the previous section, run:
+
+```bash
+scripts/verify-post-initialization-configuration.sh --specify "$(pwd)/.venv/bin/specify"
+```
+
+The script verifies configuration reads, script upgrades, mutable settings,
+persisted options, protected settings, and the bundled `git` extension
+lifecycle. It removes the temporary project when it exits. Set `SPECIFY` to an
+executable path instead of passing `--specify` if preferred.
+
+The team-directives lifecycle still requires a source you control, so verify it
+separately when applicable. From a disposable initialized project, replace the
+placeholder with a local directory or supported archive URL:
+
+```bash
+TEAM_DIRECTIVES_SOURCE="/absolute/path/to/team-ai-directives"
+"$(pwd)/.venv/bin/specify" config set team-ai-directives "$TEAM_DIRECTIVES_SOURCE"
+"$(pwd)/.venv/bin/specify" config get team-ai-directives
+"$(pwd)/.venv/bin/specify" config unset team-ai-directives
+```
+
+`get` must report the resolved source, and `unset` must remove the saved source
+and governance extension while warning that copied team skills remain for
+manual review.
+
+For manual slash-command testing and its pull-request reporting template, see
+[Manual testing](../CONTRIBUTING.md#manual-testing).
+
+## 5. Invoke with uvx Directly From Git (Current Branch)
 
 `uvx` can run from a local path (or a Git ref) to simulate user flows:
 
@@ -63,7 +96,7 @@ git push origin your-feature-branch
 uvx --from git+https://github.com/github/spec-kit.git@your-feature-branch specify init demo-branch-test --script ps
 ```
 
-### 4a. Absolute Path uvx (Run From Anywhere)
+### 5a. Absolute Path uvx (Run From Anywhere)
 
 If you're in another directory, use an absolute path instead of `.`:
 
@@ -87,7 +120,7 @@ specify-dev() { uvx --from /mnt/c/GitHub/spec-kit specify "$@"; }
 specify-dev --help
 ```
 
-## 5. Testing Script Permission Logic
+## 6. Testing Script Permission Logic
 
 After running an `init`, check that shell scripts are executable on POSIX systems:
 
@@ -98,7 +131,7 @@ ls -l scripts | grep .sh
 
 On Windows you will instead use the `.ps1` scripts (no chmod needed).
 
-## 6. Scaffold a Built-In Integration
+## 7. Scaffold a Built-In Integration
 
 Use the integration scaffold command to create the initial Python package and
 test skeleton for a new built-in integration:
@@ -118,7 +151,7 @@ The scaffold does not register the integration automatically. Review the
 generated metadata, then add the import and `_register()` call in
 `src/specify_cli/integrations/__init__.py`.
 
-## 7. Run Lint / Basic Checks
+## 8. Run Lint / Basic Checks
 
 CI enforces `ruff check src tests` (see `.github/workflows/test.yml`), so run it locally before pushing:
 
@@ -132,7 +165,7 @@ You can also quickly sanity check importability:
 python -c "import specify_cli; print('Import OK')"
 ```
 
-## 8. Build a Wheel Locally (Optional)
+## 9. Build a Wheel Locally (Optional)
 
 Validate packaging before publishing:
 
@@ -143,7 +176,7 @@ ls dist/
 
 Install the built artifact into a fresh throwaway environment if needed.
 
-## 9. Using a Temporary Workspace
+## 10. Using a Temporary Workspace
 
 When testing `init --here` in a dirty directory, create a temp workspace:
 
@@ -154,7 +187,7 @@ python -m src.specify_cli init --here --integration claude --ignore-agent-tools 
 
 Or copy only the modified CLI portion if you want a lighter sandbox.
 
-## 10. Debug Network / TLS Issues
+## 11. Debug Network / TLS Issues
 
 > **Deprecated:** The `--skip-tls` flag is a no-op and has no effect.
 > It was previously used to bypass TLS validation during local testing.
@@ -163,10 +196,10 @@ Or copy only the modified CLI portion if you want a lighter sandbox.
 >
 > For example, set `SSL_CERT_FILE` or configure `HTTPS_PROXY` / `HTTP_PROXY`.
 
-## 11. Rapid Edit Loop Summary
+## 12. Rapid Edit Loop Summary
 
 | Action | Command |
-|--------|---------|
+| --- | --- |
 | Run CLI directly | `python -m src.specify_cli --help` |
 | Editable install | `uv pip install -e .` then `specify ...` |
 | Local uvx run (repo root) | `uvx --from . specify ...` |
@@ -174,7 +207,7 @@ Or copy only the modified CLI portion if you want a lighter sandbox.
 | Git branch uvx | `uvx --from git+URL@branch specify ...` |
 | Build wheel | `uv build` |
 
-## 12. Cleaning Up
+## 13. Cleaning Up
 
 Remove build artifacts / virtual env quickly:
 
@@ -182,17 +215,17 @@ Remove build artifacts / virtual env quickly:
 rm -rf .venv dist build *.egg-info
 ```
 
-## 13. Common Issues
+## 14. Common Issues
 
 | Symptom | Fix |
-|---------|-----|
+| --- | --- |
 | `ModuleNotFoundError: typer` | Run `uv pip install -e .` |
 | Scripts not executable (Linux) | Re-run init or `chmod +x scripts/*.sh` |
 | Git commands unavailable | Install the git extension with `specify extension add git` |
 | Wrong script type downloaded | Pass `--script sh`, `--script ps`, or `--script py` explicitly |
 | TLS errors on corporate network | Configure your environment's certificate store or proxy. The `--skip-tls` flag is deprecated and has no effect. |
 
-## 14. Next Steps
+## 15. Next Steps
 
 - Update docs and run through Quick Start using your modified CLI
 - Open a PR when satisfied

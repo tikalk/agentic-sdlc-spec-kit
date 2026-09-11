@@ -2,6 +2,31 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [1.0.4+adlc3] - 2026-09-11
+
+### Added
+
+- **Project configuration CLI**: Added `specify config` for inspecting persisted
+  initialization settings, safely changing feature numbering,
+  delegating extension lifecycle commands, and managing the team-directives
+  source after initialization. Added the corresponding reference and local
+  development documentation.
+  Script and skills-layout changes use `specify integration upgrade`.
+  Read-only settings receive specific guidance, team-directives failures report
+  partial installation and retry guidance, and unsetting an absent extension
+  distinguishes saved-source cleanup from an already-unset configuration.
+
+### Changed
+
+- **Preset catalog validation**: A present `catalogs` value in
+  `.specify/preset-catalogs.yml` must now be a list. Empty, falsy non-list
+  values such as `{}`, `""`, `0`, and `false` now report a validation error
+  instead of silently behaving as an empty catalog configuration.
+- **Re-initialization team-directives state**: Re-running `specify init`
+  without `--team-ai-directives` now drops previously tracked MCP ownership
+  metadata alongside the directives source, preventing stale configuration
+  records.
+
 # [1.0.4+adlc1] - 2026-09-03
 
 ### Changed
