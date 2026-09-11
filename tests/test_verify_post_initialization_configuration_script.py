@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "verify-post-initialization-configuration.sh"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="bash script requires WSL on Windows")
 def test_verifier_checks_post_initialization_configuration() -> None:
     """The helper validates the documented local configuration workflow."""
     result = subprocess.run(
