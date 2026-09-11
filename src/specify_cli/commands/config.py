@@ -82,7 +82,7 @@ def _read_mcp_config(project_root) -> dict[str, Any]:
         return {}
     content = json.loads(mcp_path.read_text())
     if not isinstance(content, dict):
-        raise ValueError("Project .mcp.json must contain a JSON object")
+        raise TypeError("Project .mcp.json must contain a JSON object")
     return content
 
 
@@ -247,7 +247,8 @@ def config_set(
                 options[_TEAM_DIRECTIVES_MCP_KEY] = additions
             else:
                 options.pop(_TEAM_DIRECTIVES_MCP_KEY, None)
-        except Exception as exc:
+        # Keep the CLI boundary broad so every setup failure triggers rollback and a clean diagnostic.
+        except Exception as exc:  # noqa: BLE001 — setup dependencies expose heterogeneous failure types.
             if mcp_reconciled:
                 if previous_mcp is None:
                     mcp_path.unlink(missing_ok=True)

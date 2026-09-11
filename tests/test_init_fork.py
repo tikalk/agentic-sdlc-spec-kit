@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import zipfile
 
 import pytest
 
-from specify_cli._init_options import load_init_options
 from specify_cli import _init_fork
+from specify_cli._init_options import load_init_options
 
 
 def test_replace_cached_team_directives_archive_preserves_previous_cache_on_failure(

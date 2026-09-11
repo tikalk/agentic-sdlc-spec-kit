@@ -11,7 +11,6 @@ from typer.testing import CliRunner
 from specify_cli import app, load_init_options, save_init_options
 from specify_cli.commands import config
 
-
 runner = CliRunner()
 
 
