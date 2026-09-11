@@ -453,6 +453,19 @@ class TestAgentConfigConsistency:
         assert "team-context" not in adlc_specify
         assert "team-context" not in adlc_plan
 
+    def test_plan_preset_matches_setup_plan_output_keys(self):
+        """The preinstalled plan override must request the script's feature directory key."""
+        adlc_plan = (
+            REPO_ROOT
+            / "presets"
+            / "agentic-sdlc"
+            / "commands"
+            / "adlc.spec.plan.md"
+        ).read_text(encoding="utf-8")
+
+        assert "FEATURE_DIR" in adlc_plan
+        assert "SPECS_DIR" not in adlc_plan
+
     # --- RovoDev consistency checks ---
 
     def test_rovodev_in_agent_config(self):

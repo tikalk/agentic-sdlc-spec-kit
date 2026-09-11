@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli import app
+from specify_cli import app, load_init_options, save_init_options
 from specify_cli.commands.init import _shell_quote_arg
 
 from tests.conftest import requires_bash
@@ -138,6 +138,48 @@ def test_ordinary_name_is_not_quoted(tmp_path: Path):
     result = _init(tmp_path, "my-project")
     assert result.exit_code == 0, _strip(result.stdout)
     assert _cd_argument(result.stdout) == "my-project"
+
+
+def test_reinit_without_team_directives_discards_owned_mcp_metadata(tmp_path: Path):
+    """A re-init without the source must not retain its MCP ownership record."""
+    name = "project"
+    initial = _init(tmp_path, name)
+    assert initial.exit_code == 0, _strip(initial.stdout)
+
+    project = tmp_path / name
+    save_init_options(
+        project,
+        {
+            **load_init_options(project),
+            "team_ai_directives": "/old/directives",
+            "team_ai_directives_mcp": {"mcpServers": {"team": {}}},
+        },
+    )
+
+    previous = os.getcwd()
+    os.chdir(project)
+    try:
+        result = CliRunner().invoke(
+            app,
+            [
+                "init",
+                "--here",
+                "--force",
+                "--integration",
+                "generic",
+                "--integration-options",
+                "--commands-dir .agent/commands",
+                "--ignore-agent-tools",
+                "--offline",
+            ],
+            catch_exceptions=True,
+        )
+    finally:
+        os.chdir(previous)
+
+    assert result.exit_code == 0, _strip(result.stdout)
+    assert "team_ai_directives" not in load_init_options(project)
+    assert "team_ai_directives_mcp" not in load_init_options(project)
 
 
 @requires_bash
