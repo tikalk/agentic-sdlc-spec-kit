@@ -174,9 +174,13 @@ def test_config_set_team_directives_saves_resolved_source_and_skills(
     monkeypatch.chdir(project)
     calls = []
 
+    # Use a real directory so Path.resolve() is cross-platform.
+    resolved_dir = tmp_path / "resolved" / "team-directives"
+    resolved_dir.mkdir(parents=True)
+
     def sync(source, project_root, *, force, preserve_previous_cache=False):
         calls.append(("sync", source, project_root, force))
-        return "local", Path("/resolved/team-directives")
+        return "local", resolved_dir
 
     def install_skills(**kwargs):
         calls.append(("skills", kwargs))
@@ -191,13 +195,13 @@ def test_config_set_team_directives_saves_resolved_source_and_skills(
     )
 
     assert result.exit_code == 0, result.output
-    assert load_init_options(project)["team_ai_directives"] == "/resolved/team-directives"
+    assert load_init_options(project)["team_ai_directives"] == str(resolved_dir.resolve())
     assert calls == [
         ("sync", "/input/team-directives", project, False),
         (
             "skills",
             {
-                "team_directives_path": Path("/resolved/team-directives"),
+                "team_directives_path": resolved_dir,
                 "project_path": project,
                 "selected_ai": "codex",
                 "force": False,
