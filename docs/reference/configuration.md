@@ -27,6 +27,15 @@ Supported values are:
 | --- | --- |
 | `feature-numbering` | `sequential`, `timestamp` |
 
+Configuration changes reject unreadable or malformed `.specify/init-options.json`
+files. Repair the file before retrying; existing settings are preserved.
+
+Legacy projects without this file must first run
+`specify integration install <key>` (or `specify integration use <key>` for an
+already installed integration). Until then, `config set` refuses to create the
+file because doing so without an active agent would disable legacy extension
+and preset command registration.
+
 Script type, the active integration, and skills layout are owned by
 `specify integration`. Changing a script type requires regenerating the
 installed agent files:

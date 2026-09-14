@@ -11,7 +11,7 @@ from rich.text import Text
 
 from .._console import console
 from .._core_fork import MCP_ENTRY_SECTIONS, install_mcp_config, mcp_entries_added
-from .._init_options import load_init_options, save_init_options
+from .._init_options import INIT_OPTIONS_FILE, load_init_options, save_init_options
 from ..extensions import ExtensionManager
 from ..extensions._commands import extension_app
 
@@ -64,6 +64,16 @@ def _require_specify_project():
     from .. import _require_specify_project as require_project
 
     return require_project()
+
+
+def _load_options_for_update(project_root) -> dict[str, Any]:
+    # Mutations must fail before changing settings or extension state when reads fail.
+    try:
+        return load_init_options(project_root, strict=True)
+    except (OSError, ValueError) as exc:
+        raise typer.BadParameter(
+            "Cannot read .specify/init-options.json. Repair the file before changing settings."
+        ) from exc
 
 
 def _canonical_key(key: str) -> str | None:
@@ -179,7 +189,7 @@ def config_set(
     """Change a supported initialization setting."""
     normalized_key = key.replace("_", "-").lower()
     project_root = _require_specify_project()
-    options = load_init_options(project_root)
+    options = _load_options_for_update(project_root)
 
     if normalized_key == "script":
         raise typer.BadParameter(
@@ -274,6 +284,14 @@ def config_set(
     else:
         raise typer.BadParameter(f"Unknown configuration key: {key}")
 
+    # An options file without an active agent disables legacy command registration.
+    if not (project_root / INIT_OPTIONS_FILE).exists():
+        raise typer.BadParameter(
+            "This legacy project has no .specify/init-options.json. "
+            "Run specify integration install <key> first "
+            "(or specify integration use <key> if already installed), then retry."
+        )
+
     save_init_options(project_root, options)
     console.print(f"Updated {normalized_key}")
 
@@ -286,7 +304,7 @@ def config_unset(key: str = typer.Argument(help="Configuration key")) -> None:
         raise typer.BadParameter("Only team-ai-directives can be unset")
 
     project_root = _require_specify_project()
-    options = load_init_options(project_root)
+    options = _load_options_for_update(project_root)
     try:
         _remove_owned_mcp_entries(project_root, options.get(_TEAM_DIRECTIVES_MCP_KEY))
     except (OSError, ValueError, json.JSONDecodeError) as exc:

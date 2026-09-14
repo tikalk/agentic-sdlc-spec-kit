@@ -62,6 +62,10 @@ persisted options, protected settings, and the bundled `git` extension
 lifecycle. It removes the temporary project when it exits. Set `SPECIFY` to an
 executable path instead of passing `--specify` if preferred.
 
+Relative executable paths are resolved before entering the temporary project.
+The verifier overrides `SPECIFY_INIT_DIR` within its own process so an inherited
+value cannot redirect configuration changes to an existing project.
+
 The team-directives lifecycle still requires a source you control, so verify it
 separately when applicable. From a disposable initialized project, replace the
 placeholder with a local directory or supported archive URL:
@@ -153,11 +157,16 @@ generated metadata, then add the import and `_register()` call in
 
 ## 8. Run Lint / Basic Checks
 
-CI enforces `ruff check src tests` (see `.github/workflows/test.yml`), so run it locally before pushing:
+Run Ruff from the repository root using the version pinned in
+`.github/workflows/test.yml`:
 
 ```bash
-uvx ruff check src tests
+uvx ruff@0.15.0 check src tests
 ```
+
+Ruff does not need to be installed in `.venv` or on `PATH`; `uvx` manages its
+tool environment. If cached, use `uvx --offline ruff@0.15.0 check src tests`
+to run without network access.
 
 You can also quickly sanity check importability:
 

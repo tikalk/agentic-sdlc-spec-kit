@@ -600,3 +600,115 @@ def test_config_team_directives_failure_preserves_source_and_allows_retry(
     assert (project / ".agents" / "skills" / "second" / "SKILL.md").read_text() == "second skill"
     if phase == "skill installation":
         assert first_skill.read_text() == "preserved partial skill"
+
+
+@pytest.mark.parametrize("command", [["set", "feature-numbering", "timestamp"], ["unset", "team-ai-directives"]])
+@pytest.mark.parametrize("contents", [b'{"ai": "copilot",}', b'[]', b'null', b'\xff'])
+def test_config_write_preserves_invalid_existing_configuration(tmp_path, monkeypatch, contents, command):
+    project = _project(tmp_path)
+    monkeypatch.chdir(project)
+    options_file = project / ".specify/init-options.json"
+    options_file.write_bytes(contents)
+    removals = []
+    monkeypatch.setattr(config.ExtensionManager, "remove", lambda *args: removals.append(args))
+
+    result = runner.invoke(app, ["config", *command])
+
+    assert result.exit_code != 0
+    assert "init-options.json" in result.output
+    assert options_file.read_bytes() == contents
+    assert removals == []
+
+
+@pytest.mark.parametrize("command", [["set", "feature-numbering", "timestamp"], ["unset", "team-ai-directives"]])
+def test_config_write_rejects_unreadable_options(tmp_path, monkeypatch, command):
+    project = _project(tmp_path)
+    monkeypatch.chdir(project)
+    options_file = project / ".specify/init-options.json"
+    before = options_file.read_bytes()
+    read_text = Path.read_text
+
+    def deny_options_read(path, *args, **kwargs):
+        if path == options_file:
+            raise PermissionError("Permission denied")
+        return read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", deny_options_read)
+
+    result = runner.invoke(app, ["config", *command])
+
+    assert result.exit_code != 0
+    assert "Repair the file" in result.output
+    assert options_file.read_bytes() == before
+
+
+def test_config_set_preserves_dangling_options_symlink(tmp_path, monkeypatch):
+    project = _project(tmp_path)
+    monkeypatch.chdir(project)
+    options_file = project / ".specify/init-options.json"
+    options_file.unlink()
+    missing = project / "missing.json"
+    options_file.symlink_to(missing)
+
+    result = runner.invoke(app, ["config", "set", "feature-numbering", "timestamp"])
+
+    assert result.exit_code != 0
+    assert "Repair the file" in result.output
+    assert options_file.is_symlink()
+    assert not missing.exists()
+
+
+def test_config_set_preserves_other_settings(tmp_path, monkeypatch):
+    project = _project(tmp_path)
+    monkeypatch.chdir(project)
+    before = load_init_options(project)
+
+    result = runner.invoke(app, ["config", "set", "feature-numbering", "timestamp"])
+
+    assert result.exit_code == 0, result.output
+    assert load_init_options(project) == {**before, "feature_numbering": "timestamp"}
+
+
+@pytest.mark.parametrize(
+    "agents",
+    [(), (("gemini", "toml"),), (("gemini", "toml"), ("qwen", "md"))],
+)
+def test_config_set_preserves_legacy_registration(tmp_path, monkeypatch, agents):
+    (tmp_path / ".specify").mkdir()
+    for agent, _ in agents:
+        (tmp_path / f".{agent}/commands").mkdir(parents=True)
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["config", "set", "feature-numbering", "timestamp"])
+
+    assert result.exit_code != 0
+    assert "specify integration install" in result.output
+    assert not (tmp_path / ".specify/init-options.json").exists()
+
+    installed = runner.invoke(app, ["config", "extension", "add", "git"])
+
+    assert installed.exit_code == 0, installed.output
+    for agent, extension in agents:
+        command = tmp_path / f".{agent}/commands/git.feature.{extension}"
+        assert command.is_file()
+        assert "feature_numbering" in command.read_text(encoding="utf-8")
+
+
+def test_config_set_works_after_legacy_integration_install(tmp_path, monkeypatch):
+    (tmp_path / ".specify").mkdir()
+    (tmp_path / ".gemini/commands").mkdir(parents=True)
+    monkeypatch.chdir(tmp_path)
+
+    installed = runner.invoke(app, ["integration", "install", "gemini"])
+    assert installed.exit_code == 0, installed.output
+
+    result = runner.invoke(app, ["config", "set", "feature-numbering", "timestamp"])
+
+    assert result.exit_code == 0, result.output
+    options = load_init_options(tmp_path)
+    assert options["feature_numbering"] == "timestamp"
+    assert options["ai"] == "gemini"
+
+    extension = runner.invoke(app, ["config", "extension", "add", "git"])
+    assert extension.exit_code == 0, extension.output
+    assert (tmp_path / ".gemini/commands/git.feature.toml").is_file()

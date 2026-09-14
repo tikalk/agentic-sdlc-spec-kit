@@ -48,17 +48,20 @@ done
 
 if [[ -n "$SPECIFY_PATH" ]]; then
   [[ -x "$SPECIFY_PATH" ]] || fail "Specify executable is not executable: $SPECIFY_PATH"
-  SPECIFY=("$SPECIFY_PATH")
 else
-  command -v specify >/dev/null 2>&1 || fail "Specify executable not found. Pass --specify PATH."
-  SPECIFY=(specify)
+  SPECIFY_PATH="$(command -v specify)" || fail "Specify executable not found. Pass --specify PATH."
 fi
+# Resolve before changing directories, including relative entries from PATH.
+SPECIFY_PATH="$(cd -- "$(dirname -- "$SPECIFY_PATH")" && pwd)/$(basename -- "$SPECIFY_PATH")"
+SPECIFY=("$SPECIFY_PATH")
 
 command -v python3 >/dev/null 2>&1 || fail "python3 is required to inspect init-options.json."
 
 TEMP_DIR="$(mktemp -d)" || fail "Could not create a temporary directory."
 trap cleanup EXIT INT TERM
 PROJECT_DIR="$TEMP_DIR/project"
+# Project commands honor this override even after cd; confine them to this sandbox.
+export SPECIFY_INIT_DIR="$PROJECT_DIR"
 
 run() {
   "${SPECIFY[@]}" "$@"
