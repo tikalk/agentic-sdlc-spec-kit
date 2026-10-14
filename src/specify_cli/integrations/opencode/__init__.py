@@ -21,17 +21,19 @@ class OpencodeIntegration(MarkdownIntegration):
     }
 
     CANONICAL_TO_NATIVE = {
-        "pre_tool_use": "tool.execute.before",
-        "post_tool_use": "tool.execute.after",
-        # session_start maps to the system-prompt transform hook (not the
+        # OpenCode V2 renamed the tool hooks: the plugin registers them via
+        # ctx.tool.hook("execute.before" | "execute.after", ...).
+        "pre_tool_use": "execute.before",
+        "post_tool_use": "execute.after",
+        # session_start maps to the V2 session "context" hook (not the
         # session.created event) so the handler's stdout is injected into the
         # system prompt — session.created has no output channel. The hook
         # fires per LLM request, which keeps the context present across
         # compaction at the cost of running the handler per turn.
-        "session_start": "experimental.chat.system.transform",
-        # user_prompt_submit maps to chat.message so handler stdout is
-        # injected as a synthetic text part on the user's message.
-        "user_prompt_submit": "chat.message",
+        "session_start": "context",
+        # user_prompt_submit maps to the V2 session "prompt" hook so handler
+        # stdout is appended to the user's message text.
+        "user_prompt_submit": "prompt",
         "session_end": "session.deleted",
     }
     events_config_file = "opencode.json"

@@ -408,13 +408,15 @@ if __name__ == "__main__":
 
 # -- TS plugin template (opencode) ----------------------------------------
 
-_TS_PLUGIN_TEMPLATE = '''import {{ execFileSync }} from 'child_process';
+_TS_PLUGIN_TEMPLATE = '''import {{ Plugin }} from '@opencode/plugin';
+import {{ execFileSync }} from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
 
-// The dispatcher + interpreter are resolved per-project at plugin load from
-// the `directory` OpenCode passes to the plugin factory (C8), not
-// process.cwd() — OpenCode may be launched from a parent directory or host
-// another workspace, in which case process.cwd() points at the wrong project.
+// OpenCode V2 plugin. The dispatcher + interpreter are resolved per-project at
+// plugin load from ctx.location.directory (V2), not process.cwd() — OpenCode
+// may be launched from a parent directory or host another workspace, in which
+// case process.cwd() points at the wrong project.
 let DISPATCHER = '';
 let INTERPRETER = '';
 
@@ -441,8 +443,8 @@ function resolveDispatcher(directory: string): void {{
   const venvPy = path.join(directory, '.venv', 'bin', 'python');
   const venvWin = path.join(directory, '.venv', 'Scripts', 'python.exe');
   INTERPRETER = (
-    (require('fs').existsSync(venvPy) && canImportSpecifyCli(venvPy) && venvPy) ||
-    (require('fs').existsSync(venvWin) && canImportSpecifyCli(venvWin) && venvWin) ||
+    (fs.existsSync(venvPy) && canImportSpecifyCli(venvPy) && venvPy) ||
+    (fs.existsSync(venvWin) && canImportSpecifyCli(venvWin) && venvWin) ||
     (process.platform === 'win32' ? 'python' : 'python3')
   ) as string;
 }}
@@ -455,8 +457,8 @@ function runEvent(command: string, event: string, input: any, output: any, timeo
     // of the dispatcher argument (C9). The dispatcher arg is seconds; the
     // execFileSync timeout is ms with a buffer so the outer cap fires after
     // the dispatcher's inner subprocess (S3). stdout is captured and
-    // returned so context-injection hooks (experimental.chat.system.transform,
-    // chat.message) can push it into their outputs; stderr stays inherited so
+    // returned so context-injection hooks (the session "context" and "prompt"
+    // hooks) can push it into their outputs; stderr stays inherited so
     // dispatcher errors remain visible (C11).
     return execFileSync(INTERPRETER, [DISPATCHER, command, event, String(timeoutSec)], {{
       input: JSON.stringify({{ input, output }}),
@@ -473,17 +475,18 @@ function runEvent(command: string, event: string, input: any, output: any, timeo
 
 // Cache session_start handler output per sessionID so non-idempotent
 // handlers (setup, telemetry, file-mutating scripts) run once per session
-// instead of on every LLM request (experimental.chat.system.transform
-// fires per LLM turn). Evicted on session.deleted.
+// instead of on every LLM request (the session "context" hook fires per LLM
+// turn). Evicted on session.deleted.
 const sessionStartCache = new Map<string, string>();
 
 {event_entries}
 
-export default (async ({{ client, project, directory, $ }}) => {{
-  resolveDispatcher(directory);
-  return {{
-{plugin_returns}
-  }};
+export default Plugin.define({{
+  id: 'speckit-events',
+  async setup(ctx) {{
+    resolveDispatcher(ctx.location.directory);
+{plugin_registrations}
+  }},
 }});
 '''
 
@@ -1900,17 +1903,18 @@ def _build_opencode_plugin(
     are forwarded to ``runEvent`` (C7) so pre_tool_use can inspect tool
     arguments and post_tool_use can inspect the result.
 
-    Context-injection natives get dedicated hook bodies: for
-    ``experimental.chat.system.transform`` the handlers' concatenated stdout
-    is pushed into ``output.system`` (system-prompt injection, re-applied per
-    LLM request so the context survives compaction); for ``chat.message`` it
-    is pushed as a synthetic text part on the user message (C11). Other
-    natives keep their side-effect behavior (tool.execute.* args mutation;
-    session.* lifecycle events via the generic ``event`` hook).
+    Context-injection natives get dedicated hook bodies: for the session
+    ``context`` hook the handlers' concatenated stdout is pushed into the
+    request's ``system`` parts (system-prompt injection, re-applied per LLM
+    request so the context survives compaction); for the ``prompt`` hook it is
+    appended to the session's ``event.prompt.text`` (C11). Other natives keep
+    their side-effect behavior (tool hooks via ``ctx.tool.hook``; session.*
+    lifecycle events via ``ctx.event.subscribe()``).
     """
     event_entries: list[str] = []
-    plugin_returns: list[str] = []
-    event_handlers: list[str] = []
+    plugin_registrations: list[str] = []
+    subscription_handlers: list[str] = []
+    session_cache_used = False
 
     for ev, handlers in filtered_events.items():
         native = canonical_to_native[ev]
@@ -1921,11 +1925,13 @@ def _build_opencode_plugin(
         ev_lit = json.dumps(ev)
         native_lit = json.dumps(native)
 
-        is_injection = native in ("experimental.chat.system.transform", "chat.message")
+        is_context_injection = native == "context"
+        is_prompt_injection = native == "prompt"
+        is_injection = is_context_injection or is_prompt_injection
 
         # Build the body: one runEvent() call per handler wrapped in try/catch,
         # forwarding both input and output (C7). An optional tool-name matcher
-        # guard applies to tool.execute.* hooks. All handlers execute before
+        # guard applies to tool hooks (execute.*). All handlers execute before
         # any aggregate error is thrown. Injection hooks additionally collect
         # each handler's stdout and return the concatenation.
         body_lines: list[str] = ["    const errors: string[] = [];"]
@@ -1939,7 +1945,7 @@ def _build_opencode_plugin(
             # execFileSync cap and dispatcher arg match the configuration
             # instead of a fixed 60000ms / 120s.
             timeout_sec = int(cfg.get("timeout", 60))
-            if native.startswith("tool.execute."):
+            if native.startswith("execute."):
                 if matcher and matcher != "*":
                     tools = [t.strip().strip('"') for t in matcher.split("|")]
                     checks = " || ".join(
@@ -1962,63 +1968,59 @@ def _build_opencode_plugin(
                 )
         body_lines.append("    if (errors.length > 0) { throw new Error(errors.join('; ')); }")
 
-        if native.startswith("tool.execute."):
-            ts_hook = native
+        if native.startswith("execute."):
+            # V2 hands both the tool name and its arguments on one mutable
+            # event; pass it as both input and output so handlers can inspect
+            # the call and mutate the result.
             event_entries.append(
                 f"function _{ev}(input: any, output: any) {{\n"
                 + "\n".join(body_lines) + "\n"
                 "  }"
             )
-            plugin_returns.append(
-                f"    {json.dumps(ts_hook)}: async (input: any, output: any) => {{\n"
-                f"      _{ev}(input, output);\n"
-                f"    }},"
+            plugin_registrations.append(
+                f'    await ctx.tool.hook({native_lit}, (event: any) => {{\n'
+                f'      _{ev}(event, event);\n'
+                f'    }});'
             )
-        elif native == "experimental.chat.system.transform":
+        elif is_context_injection:
+            session_cache_used = True
             body_lines.append('    return contexts.join("\\n\\n");')
             event_entries.append(
                 f"function _{ev}(input: any, output: any): string {{\n"
                 + "\n".join(body_lines) + "\n"
                 "  }"
             )
-            # OpenCode fires experimental.chat.system.transform for non-session
-            # operations (e.g. agent generation) with no sessionID. Guard so
-            # canonical session_start handlers only run when a session is
-            # present, preventing their output from being injected into
-            # internal prompts. Cache the handler output per sessionID so
-            # non-idempotent handlers (setup, telemetry, file-mutating
-            # scripts) execute once per session instead of on every LLM
-            # request; the cache is evicted on session.deleted.
-            plugin_returns.append(
-                f"    {native_lit}: async (input: any, output: any) => {{\n"
-                f"      if (!input.sessionID) return;\n"
-                f"      let ctx = sessionStartCache.get(input.sessionID);\n"
-                f"      if (ctx === undefined) {{\n"
-                f"        ctx = _{ev}(input, output);\n"
-                f"        sessionStartCache.set(input.sessionID, ctx ?? \"\");\n"
-                f"      }}\n"
-                f"      if (ctx) output.system.push(ctx);\n"
-                f"    }},"
+            # V2 replaces experimental.chat.system.transform with the session
+            # "context" hook. Guard on sessionID so canonical session_start
+            # handlers only run when a session is present, and cache the output
+            # per sessionID so non-idempotent handlers execute once per session
+            # instead of on every LLM request; the cache is evicted on
+            # session.deleted.
+            plugin_registrations.append(
+                f'    await ctx.session.hook("context", (event: any) => {{\n'
+                f'      if (!event.sessionID) return;\n'
+                f'      let text = sessionStartCache.get(event.sessionID);\n'
+                f'      if (text === undefined) {{\n'
+                f'        text = _{ev}(event, {{ system: event.system }});\n'
+                f'        sessionStartCache.set(event.sessionID, text ?? "");\n'
+                f'      }}\n'
+                f'      if (text) event.system.push({{ type: "text", text }});\n'
+                f'    }});'
             )
-        elif native == "chat.message":
+        elif is_prompt_injection:
             body_lines.append('    return contexts.join("\\n\\n");')
             event_entries.append(
                 f"function _{ev}(input: any, output: any): string {{\n"
                 + "\n".join(body_lines) + "\n"
                 "  }"
             )
-            # Part id must start with "prt" (opencode's Identifier brand): an
-            # invalid id fails the user-part schema validation and crashes the
-            # whole session (C12). Derive it from the last existing part so the
-            # brand survives an opencode prefix change, falling back to "prt_"
-            # when output.parts is empty.
-            plugin_returns.append(
-                f"    {native_lit}: async (input: any, output: any) => {{\n"
-                f"      const ctx = _{ev}(input, output);\n"
-                f"      if (!ctx) return;\n"
-                f"      const base = output.parts[output.parts.length - 1]?.id ?? \"prt_\" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n"
-                f"      output.parts.push({{ id: base + \".speckit\" + Math.random().toString(36).slice(2, 8), sessionID: input.sessionID, messageID: output.message.id, type: \"text\", text: ctx, synthetic: true }});\n"
-                f"    }},"
+            # V2 replaces chat.message with the session "prompt" hook. Append
+            # the handlers' concatenated stdout to the admitted prompt text.
+            plugin_registrations.append(
+                f'    await ctx.session.hook("prompt", (event: any) => {{\n'
+                f'      const text = _{ev}(event, event);\n'
+                f'      if (text) event.prompt.text = event.prompt.text ? event.prompt.text + "\\n\\n" + text : text;\n'
+                f'    }});'
             )
         else:
             event_entries.append(
@@ -2026,45 +2028,67 @@ def _build_opencode_plugin(
                 + "\n".join(body_lines) + "\n"
                 "  }"
             )
-            # Evict the sessionStartCache when the session is deleted so the
-            # cache doesn't grow unbounded across sessions.
-            eviction = ""
-            if native == "session.deleted":
-                eviction = "if (event.sessionID) sessionStartCache.delete(event.sessionID); "
-            event_handlers.append(
-                f"      if (event.type === {native_lit}) {{ {eviction}_{ev}(event, event); }}"
+            # V2 exposes lifecycle events through ctx.event.subscribe().
+            subscription_handlers.append(
+                f'        if (event.type === {native_lit}) {{ _{ev}(event, event); }}'
             )
 
-    if event_handlers:
-        plugin_returns.append(
-            "    event: async ({ event }) => {\n"
-            + "\n".join(event_handlers) + "\n"
-            "    },"
+    # Always evict the sessionStartCache on session.deleted whenever the
+    # context hook (and therefore the cache) was generated, so it can't grow
+    # unbounded across sessions. The deleted event carries the id under
+    # `data.sessionID` (schema: session.deleted).
+    if session_cache_used:
+        subscription_handlers.append(
+            '        if (event.type === "session.deleted") { const _sid = (event as any).data?.sessionID; if (_sid) sessionStartCache.delete(_sid); }'
+        )
+
+    if subscription_handlers:
+        plugin_registrations.append(
+            '    const _speckitAbort = new AbortController();\n'
+            '    void (async () => {\n'
+            '      for await (const event of ctx.event.subscribe({ signal: _speckitAbort.signal })) {\n'
+            + "\n".join(subscription_handlers) + "\n"
+            '      }\n'
+            '    })();\n'
+            '    return () => _speckitAbort.abort();'
         )
 
     return _TS_PLUGIN_TEMPLATE.format(
         buffer=EVENT_TIMEOUT_BUFFER,
         event_entries="\n\n".join(event_entries),
-        plugin_returns="\n".join(plugin_returns),
+        plugin_registrations="\n".join(plugin_registrations),
     )
 
 
 def _merge_opencode_plugin_ref(config_path: Path, ref: str) -> bool:
-    """Merge the speckit-events plugin ref into opencode.json.
+    """Retire the legacy speckit-events plugin ref from opencode.json.
+
+    OpenCode V2 auto-discovers plugins from ``.opencode/plugin/`` (and
+    ``.opencode/plugins/``), so the plugin no longer needs a config entry. A V1
+    install wrote *ref* into the ``plugin`` list; V2 renamed that key to
+    ``plugins`` and warns when an entry points at a file rather than a
+    directory, so remove the marker ref from both keys when present.
 
     Aborts with a warning (#23) when the file cannot be parsed (e.g. JSONC or
     malformed JSON) instead of resetting user configuration to ``{}``. Returns
-    False when skipped so callers avoid tracking the untouched file (S5).
+    True when the file changed so callers track it; False when there was
+    nothing to remove (or the file cannot be parsed) (S5).
     """
     existing = _load_user_json(config_path)
     if existing is None:
         return False
-    plugins = existing.get("plugin", [])
-    if not isinstance(plugins, list):
-        plugins = []
-    if ref not in plugins:
-        plugins.append(ref)
-    existing["plugin"] = plugins
+    changed = False
+    for key in ("plugin", "plugins"):
+        entries = existing.get(key)
+        if isinstance(entries, list) and ref in entries:
+            remaining = [entry for entry in entries if entry != ref]
+            if remaining:
+                existing[key] = remaining
+            else:
+                existing.pop(key, None)
+            changed = True
+    if not changed:
+        return False
     _safe_write_json(config_path, existing)
     return True
 
@@ -2079,14 +2103,15 @@ def _remove_opencode_entries(config_path: Path) -> bool:
     existing = _load_user_json(config_path)
     if existing is None:
         return False
-    plugins = existing.get("plugin", [])
-    if isinstance(plugins, list):
-        ref = "./.opencode/plugin/speckit-events.ts"
-        plugins = [p for p in plugins if p != ref]
-        if plugins:
-            existing["plugin"] = plugins
-        else:
-            existing.pop("plugin", None)
+    ref = "./.opencode/plugin/speckit-events.ts"
+    for key in ("plugin", "plugins"):
+        entries = existing.get(key)
+        if isinstance(entries, list) and ref in entries:
+            remaining = [entry for entry in entries if entry != ref]
+            if remaining:
+                existing[key] = remaining
+            else:
+                existing.pop(key, None)
     if not existing:
         config_path.unlink(missing_ok=True)
         return True

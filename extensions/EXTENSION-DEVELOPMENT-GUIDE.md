@@ -249,8 +249,8 @@ Agent runtime lifecycle hooks — these are **separate** from workflow `hooks` a
 
 | Canonical | Claude/Codex/Devin/Qwen | Cursor | opencode | Gemini/Tabnine |
 |-----------|------------------------|--------|----------|----------------|
-| `PreToolUse` | `PreToolUse` | `preToolUse` | `tool.execute.before` | `BeforeTool` |
-| `PostToolUse` | `PostToolUse` | `postToolUse` | `tool.execute.after` | `AfterTool` |
+| `PreToolUse` | `PreToolUse` | `preToolUse` | `execute.before` | `BeforeTool` |
+| `PostToolUse` | `PostToolUse` | `postToolUse` | `execute.after` | `AfterTool` |
 | `Stop` | `Stop` | `stop` | — | `AfterAgent` (Gemini only) |
 | `SessionStart` | `SessionStart` | `sessionStart` | — | `SessionStart` |
 | `SessionEnd` | `SessionEnd` | `sessionEnd` | — | `SessionEnd` |

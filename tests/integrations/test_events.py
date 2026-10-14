@@ -266,9 +266,9 @@ class TestCanonicalEventMapping:
     def test_opencode_limited(self):
         integration = OpencodeIntegration()
         assert integration.supports_events() is True
-        assert integration.CANONICAL_TO_NATIVE["pre_tool_use"] == "tool.execute.before"
-        assert integration.CANONICAL_TO_NATIVE["session_start"] == "experimental.chat.system.transform"
-        assert integration.CANONICAL_TO_NATIVE["user_prompt_submit"] == "chat.message"
+        assert integration.CANONICAL_TO_NATIVE["pre_tool_use"] == "execute.before"
+        assert integration.CANONICAL_TO_NATIVE["session_start"] == "context"
+        assert integration.CANONICAL_TO_NATIVE["user_prompt_submit"] == "prompt"
         assert "stop" not in integration.CANONICAL_TO_NATIVE
 
     def test_copilot_mapping(self):
@@ -960,31 +960,39 @@ class TestOpencodePluginMerging:
         assert plugin_path.is_file()
         content = plugin_path.read_text()
         assert "runEvent" in content
-        assert "tool.execute.before" in content
-        assert "experimental.chat.system.transform" in content
+        # V2: the plugin is defined via Plugin.define, tool hooks register
+        # through ctx.tool.hook, and session_start uses the "context" hook.
+        assert "Plugin.define(" in content
+        assert "id: 'speckit-events'" in content
+        assert "resolveDispatcher(ctx.location.directory)" in content
+        assert 'ctx.tool.hook("execute.before"' in content
+        assert 'ctx.session.hook("context"' in content
         assert "speckit.tdd.validate" in content
         assert "speckit.agent-context.update" in content
         # #13: failures must propagate via throw, not process.exit(2) which
         # would kill the OpenCode host process.
         assert "process.exit(2)" not in content
         assert "throw new Error" in content
-        # session_start (experimental.chat.system.transform) must be guarded
-        # so canonical session-start handlers only run when a session is
-        # present — OpenCode fires this hook for non-session operations
-        # (e.g. agent generation) with no sessionID.
-        assert "if (!input.sessionID) return;" in content
+        # session_start (the "context" hook) must be guarded so canonical
+        # session-start handlers only run when a session is present —
+        # OpenCode fires this hook for non-session operations (e.g. agent
+        # generation) with no sessionID.
+        assert "if (!event.sessionID) return;" in content
         # session_start handler output is cached per sessionID so non-idempotent
         # handlers run once per session instead of on every LLM request.
         assert "sessionStartCache" in content
-        assert "sessionStartCache.get(input.sessionID)" in content
-        assert "sessionStartCache.set(input.sessionID" in content
-        # Cache is evicted on session.deleted (session_end).
-        assert "sessionStartCache.delete(event.sessionID)" in content
+        assert "sessionStartCache.get(event.sessionID)" in content
+        assert "sessionStartCache.set(event.sessionID" in content
+        # Cache is evicted on session.deleted (session_end); the event carries
+        # the session id under data.sessionID.
+        assert "sessionStartCache.delete(_sid)" in content
+        assert "data?.sessionID" in content
+        # The injected context is pushed as a text system part.
+        assert 'event.system.push({ type: "text", text })' in content
 
-    def test_opencode_ts_plugin_chat_message_part_injection(self, tmp_path):
-        """user_prompt_submit emits chat.message pushing a synthetic TextPart.
-        The part ID derives from output.parts[last].id (prt_ brand preserved)
-        with a prt_ fallback to prevent OpenCode session schema crashes."""
+    def test_opencode_ts_plugin_prompt_injection(self, tmp_path):
+        """user_prompt_submit uses the V2 session "prompt" hook: the handlers'
+        concatenated stdout is appended to the admitted prompt text."""
         integration = OpencodeIntegration()
         manifest = MagicMock(spec=IntegrationManifest)
         manifest.files = {}
@@ -999,12 +1007,9 @@ class TestOpencodePluginMerging:
         plugin_path = tmp_path / ".opencode/plugin/speckit-events.ts"
         assert plugin_path.is_file()
         content = plugin_path.read_text()
-        assert "chat.message" in content
-        assert "output.parts.push" in content
-        assert "synthetic: true" in content
-        assert 'type: "text"' in content
-        assert "output.parts[output.parts.length - 1]?.id" in content
-        assert '?? "prt_"' in content
+        assert 'ctx.session.hook("prompt"' in content
+        assert "event.prompt.text" in content
+        assert "speckit.discover" in content
 
     def test_opencode_ts_plugin_resolves_interpreter_and_directory_at_load(self, tmp_path):
         """C8/C9: the dispatcher + interpreter are resolved per-project at
@@ -1085,9 +1090,12 @@ class TestOpencodePluginMerging:
         # handler timeout (seconds) is threaded as the 5th arg.
         assert 'runEvent("speckit.tdd.validate", "pre_tool_use", input, output, 60)' in content
         assert 'runEvent("speckit.tdd.after", "post_tool_use", input, output, 60)' in content
-        # Tool callbacks pass both arguments through.
-        assert "_pre_tool_use(input, output)" in content
-        assert "_post_tool_use(input, output)" in content
+        # V2 registers tool hooks as execute.before/execute.after and passes
+        # the single mutable event as both input and output.
+        assert 'ctx.tool.hook("execute.before"' in content
+        assert 'ctx.tool.hook("execute.after"' in content
+        assert "_pre_tool_use(event, event)" in content
+        assert "_post_tool_use(event, event)" in content
 
     def test_opencode_ts_plugin_escapes_metacharacters(self, tmp_path):
         """S1: command/matcher values with quotes/backticks are serialized as
